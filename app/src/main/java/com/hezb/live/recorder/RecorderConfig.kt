@@ -1,5 +1,6 @@
 package com.hezb.live.recorder
 
+import android.os.Build
 import android.util.DisplayMetrics
 import com.hezb.live.recorder.model.Size
 
@@ -32,6 +33,8 @@ class RecorderConfig {
 
     /** 录制声音 */
     var recordAudio = true
+    /** 录制声音源 */
+    var audioSourceType = AUDIO_SOURCE_TYPE_ALL
     /** 是否竖屏录制 */
     var isPortrait = false
 
@@ -48,6 +51,18 @@ class RecorderConfig {
         const val DEFAULT_AUDIO_CHANNEL_STEREO = 1 // 声道数量
         const val DEFAULT_AUDIO_BITRATE = 128000 // 音频码率 128kbps
         const val DEFAULT_AUDIO_SAMPLE_RATE = 44100  // 音频采样率 44.1kHz
+
+        // 录制的音频源类型
+        const val AUDIO_SOURCE_TYPE_ALL = 0 // 麦克风+系统输出声音
+        const val AUDIO_SOURCE_TYPE_MIC = 1 // 仅麦克风
+        const val AUDIO_SOURCE_TYPE_PLAYBACK = 2 // 仅系统输出声音
+
+        /**
+         * 是否支持录制系统输出声音
+         */
+        fun supportRecordPlaybackAudio(): Boolean {
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        }
     }
 
 }

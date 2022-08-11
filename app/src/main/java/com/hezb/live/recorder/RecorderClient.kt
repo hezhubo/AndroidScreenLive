@@ -22,8 +22,6 @@ import java.nio.ByteBuffer
 class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback {
 
     companion object {
-        /** 出错 */
-        const val STATE_ERROR = -1
         /** 初始状态 */
         const val STATE_INIT = 0
         /** 预处理完成 */
@@ -144,7 +142,7 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
             return error
         }
         if (config.recordAudio) {
-            mAudioCore = AudioCore()
+            mAudioCore = AudioCore(mediaProjection)
             error = mAudioCore?.prepare(config) ?: ErrorCode.CLIENT_STATE_ERROR
             if (error != ErrorCode.NO_ERROR) {
                 return error

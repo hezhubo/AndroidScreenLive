@@ -2,14 +2,14 @@ package com.hezb.live.recorder.core
 
 import android.annotation.SuppressLint
 import android.media.*
+import android.media.projection.MediaProjection
+import android.os.Build
 import android.os.SystemClock
 import com.hezb.live.recorder.RecorderConfig
 import com.hezb.live.recorder.filter.audio.BaseAudioFilter
 import com.hezb.live.recorder.model.AudioBuffer
 import com.hezb.live.recorder.util.LogUtil
-import java.util.concurrent.BlockingQueue
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -21,11 +21,12 @@ import java.util.concurrent.locks.ReentrantLock
  * @author  hezhubo
  * @date    2022年07月12日 23:31
  */
-class AudioCore : BaseCore() {
+class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore() {
 
     private var mEncodeFormat: MediaFormat? = null
     private var mEncoder: MediaCodec? = null
     private var mAudioRecord: AudioRecord? = null
+    private var mPlaybackAudioRecord: AudioRecord? = null
     private var mRecorderThread: AudioRecordThread? = null
     private var mEncoderInputThread: AudioEncodeInputThread? = null
     private var mEncoderOutputThread: AudioEncodeOutputThread? = null
@@ -39,7 +40,7 @@ class AudioCore : BaseCore() {
     private val audioBufferPool = HashSet<AudioBuffer>()
     /** 音频PCM数据阻塞队列 */
     private val pcmAudioBufferQueue: BlockingQueue<AudioBuffer> = LinkedBlockingQueue()
-    private var pcmBufferSize = 0 // PCM数据缓存大小
+    private val pcmBufferSize = 2048 // PCM数据缓存大小 2k
     private val mineType = MediaFormat.MIMETYPE_AUDIO_AAC // 编码格式
 
     @SuppressLint("MissingPermission")
@@ -49,7 +50,7 @@ class AudioCore : BaseCore() {
         } else {
             AudioFormat.CHANNEL_IN_STEREO
         }
-        pcmBufferSize = AudioRecord.getMinBufferSize(
+        val minBufferSize = AudioRecord.getMinBufferSize(
             config.audioSampleRate,
             audioChannel,
             AudioFormat.ENCODING_PCM_16BIT
@@ -59,20 +60,57 @@ class AudioCore : BaseCore() {
             return ErrorCode.AUDIO_FORMAT_ERROR
         }
 
-        try {
-            mAudioRecord = AudioRecord(
-                MediaRecorder.AudioSource.DEFAULT,
-                config.audioSampleRate,
-                audioChannel,
-                AudioFormat.ENCODING_PCM_16BIT,
-                pcmBufferSize
-            )
-        } catch (e: Exception) {
-            LogUtil.e(msg = "can't create audio recorder!", tr = e)
-            return ErrorCode.AUDIO_RECORD_CREATE_ERROR
+        if (config.audioSourceType != RecorderConfig.AUDIO_SOURCE_TYPE_PLAYBACK
+            || !RecorderConfig.supportRecordPlaybackAudio()) {
+            try {
+                mAudioRecord = AudioRecord(
+                    MediaRecorder.AudioSource.DEFAULT,
+                    config.audioSampleRate,
+                    audioChannel,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    minBufferSize * 2
+                )
+            } catch (e: Exception) {
+                LogUtil.e(msg = "can't create audio recorder!", tr = e)
+                return ErrorCode.AUDIO_RECORD_CREATE_ERROR
+            }
+            if (AudioRecord.STATE_INITIALIZED != mAudioRecord?.state) {
+                return ErrorCode.AUDIO_RECORD_STATE_ERROR
+            }
+            if (config.audioSourceType == RecorderConfig.AUDIO_SOURCE_TYPE_MIC) {
+                return ErrorCode.NO_ERROR
+            }
         }
-        if (AudioRecord.STATE_INITIALIZED != mAudioRecord?.state) {
-            return ErrorCode.AUDIO_RECORD_STATE_ERROR
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mediaProjection?.let {
+                val apccBuilder = AudioPlaybackCaptureConfiguration.Builder(it)
+                apccBuilder.addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                apccBuilder.addMatchingUsage(AudioAttributes.USAGE_GAME) // 游戏类型声音
+                apccBuilder.addMatchingUsage(AudioAttributes.USAGE_MEDIA) // 媒体类型声音
+                val audioRecorderBuilder = AudioRecord.Builder()
+//                    .setAudioSource(MediaRecorder.AudioSource.DEFAULT) // 注意！无法同时设置音频来源
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(config.audioSampleRate)
+                            .setChannelMask(audioChannel)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(minBufferSize * 2)
+                    .setAudioPlaybackCaptureConfig(apccBuilder.build())
+                mPlaybackAudioRecord = try {
+                    audioRecorderBuilder.build()
+                } catch (e: Exception) {
+                    LogUtil.e(msg = "can't create playback audio recorder!", tr = e)
+                    null
+                }
+                mPlaybackAudioRecord?.let { audioRecord ->
+                    if (AudioRecord.STATE_INITIALIZED != audioRecord.state) {
+                        mPlaybackAudioRecord = null // 状态异常，不进行系统播放声音录制
+                        LogUtil.e(msg = "playback audio recorder state error!")
+                    }
+                }
+            }
         }
 
         return ErrorCode.NO_ERROR
@@ -88,7 +126,6 @@ class AudioCore : BaseCore() {
             setInteger(MediaFormat.KEY_SAMPLE_RATE, config.audioSampleRate)
             setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.audioChannelCount)
             setInteger(MediaFormat.KEY_BIT_RATE, config.audioBitrate)
-            setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, pcmBufferSize * 2)
         }
         LogUtil.i(msg = "audio encode format : ${mEncodeFormat.toString()}")
         return try {
@@ -120,6 +157,7 @@ class AudioCore : BaseCore() {
             mEncoderOutputThread = AudioEncodeOutputThread(collector).apply { start() }
             // 开始录音
             mAudioRecord?.startRecording()
+            mPlaybackAudioRecord?.startRecording()
             mRecorderThread = AudioRecordThread().apply { start() }
 
             ErrorCode.NO_ERROR
@@ -174,6 +212,7 @@ class AudioCore : BaseCore() {
         mEncoder = null
 
         mAudioRecord?.stop()
+        mPlaybackAudioRecord?.stop()
 
         audioBufferPool.clear()
         pcmAudioBufferQueue.clear()
@@ -182,6 +221,9 @@ class AudioCore : BaseCore() {
     override fun release() {
         mAudioRecord?.release()
         mAudioRecord = null
+        mPlaybackAudioRecord?.release()
+        mPlaybackAudioRecord = null
+        mediaProjection = null
     }
 
     /**
@@ -242,17 +284,108 @@ class AudioCore : BaseCore() {
         }
 
         override fun run() {
+            var audioBuffer: AudioBuffer
+            var size: Int
+            var pbAudioBuffer: AudioBuffer? = null
+            var pbSize: Int
             while (isRunning) {
-                val audioBuffer = getAudioBuffer()
-                val size =
-                    mAudioRecord?.read(audioBuffer.byteArray, 0, audioBuffer.byteArray.size) ?: 0
-                if (isRunning && size > 0 && !isPause) {
+                audioBuffer = getAudioBuffer()
+                size = mAudioRecord?.read(audioBuffer.byteArray, 0, audioBuffer.byteArray.size) ?: 0
+
+                pbSize = 0
+                mPlaybackAudioRecord?.let {
+                    pbAudioBuffer = getAudioBuffer()
+                    pbSize = mPlaybackAudioRecord?.read(
+                        pbAudioBuffer!!.byteArray,
+                        0,
+                        pbAudioBuffer!!.byteArray.size
+                    ) ?: 0
+                }
+
+                if (isRunning && (size > 0 || pbSize > 0) && !isPause) {
                     audioBuffer.size = size
+                    pbAudioBuffer?.let {
+                        it.size = pbSize
+                        mixPcm(audioBuffer, it)
+                        putAudioBufferToPool(it)
+                        pbAudioBuffer = null
+                    }
                     pcmAudioBufferQueue.put(audioBuffer)
                 } else {
                     putAudioBufferToPool(audioBuffer) // 添加到缓存池
+                    pbAudioBuffer?.let {
+                        putAudioBufferToPool(it)
+                        pbAudioBuffer = null
+                    }
                 }
             }
+        }
+
+        private val DEF_MAX = 32767
+        private val DEF_MIN = -32768
+        private val pbVolumeScale = 0.7f // 系统播放声音衰减因子
+
+        /**
+         * 参考：https://github.com/quanwstone/AudioMix/blob/master/main.cpp
+         * 自适应混音加权
+         * 使用可变的衰减因子对语音进行衰减，该衰减因子代表了语音的权重
+         * 衰减因子随着音频数据的变化而变化，当溢出时，衰减因子变小，使得后续的数据在衰减后处于临界值以内
+         * 没有溢出时，又让衰减因子慢慢增大，使数据较为平缓的变化
+         *
+         * 最终合成数据存储到audioBuffer
+         *
+         * @param audioBuffer
+         * @param pbAudioBuffer
+         */
+        private fun mixPcm(audioBuffer: AudioBuffer, pbAudioBuffer: AudioBuffer) {
+            if (pbAudioBuffer.size == 0) {
+                return // 无需混合
+            }
+            if (audioBuffer.size == 0) {
+                // 当前无麦克风录音数据，使用系统录音数据
+                audioBuffer.size = pbAudioBuffer.size
+                for (i in 0 until pbAudioBuffer.size) {
+                    audioBuffer.byteArray[i] = pbAudioBuffer.byteArray[i]
+                }
+                return
+            }
+            var f = 1.0 // 衰减因子
+            var ioutput: Int
+            var temp = 0
+            var temp2 = 0
+            val realSize = Math.max(audioBuffer.size, pbAudioBuffer.size)
+            for (i in 0 until realSize) {
+                val micByte = if (audioBuffer.size > i) {
+                    audioBuffer.byteArray[i]
+                } else {
+                    0
+                }
+                val pbByte = if (pbAudioBuffer.size > i) {
+                    (pbAudioBuffer.byteArray[i] * pbVolumeScale).toInt()
+                } else {
+                    0
+                }
+                val iT = micByte + pbByte
+                ioutput = (iT * f).toInt()
+                if (ioutput > DEF_MAX) {
+                    f = DEF_MAX / ioutput.toDouble()
+                    ioutput = DEF_MAX
+                } else if (ioutput < DEF_MIN) {
+                    f = DEF_MIN / ioutput.toDouble()
+                    ioutput = DEF_MIN
+                }
+                if (f < 1) {
+                    f += (1 - f) / 32
+                }
+                audioBuffer.byteArray[i] = ioutput.toByte()
+                if (ioutput == 0) {
+                    temp++
+                    if (micByte == 0.toByte() && pbByte == 0) {
+                        temp2++
+                    }
+                }
+            }
+            audioBuffer.size = realSize
         }
     }
 
