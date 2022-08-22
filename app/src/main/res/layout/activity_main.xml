@@ -44,6 +44,22 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/btn_resume_record" />
 
+    <Button
+        android:id="@+id/btn_test_audio_filter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="音频滤镜"
+        app:layout_constraintStart_toEndOf="@+id/btn_start_push"
+        app:layout_constraintTop_toBottomOf="@+id/btn_resume_record" />
+
+    <Button
+        android:id="@+id/btn_test_video_filter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="视频滤镜"
+        app:layout_constraintStart_toEndOf="@+id/btn_test_audio_filter"
+        app:layout_constraintTop_toBottomOf="@+id/btn_resume_record" />
+
     <TextView
         android:id="@+id/tv_msg"
         android:layout_width="0dp"

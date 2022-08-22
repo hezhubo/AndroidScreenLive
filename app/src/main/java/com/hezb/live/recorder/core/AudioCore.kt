@@ -227,23 +227,6 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
     }
 
     /**
-     * 获取滤镜
-     *
-     * @return
-     */
-    fun acquireAudioFilter(): BaseAudioFilter? {
-        mFilterLock.lock()
-        return mAudioFilter
-    }
-
-    /**
-     * 释放滤镜
-     */
-    fun releaseAudioFilter() {
-        mFilterLock.unlock()
-    }
-
-    /**
      * 设置滤镜
      *
      * @param audioFilter

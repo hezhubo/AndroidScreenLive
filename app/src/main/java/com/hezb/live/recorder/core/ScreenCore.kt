@@ -36,7 +36,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
     private var mEncodeFormat: MediaFormat? = null
     private var mEncoder: MediaCodec? = null
     private var mEncoderInputSurface: Surface? = null
-    private var screenTextureId: Int = -1
+    private var screenTextureId: Int = GlUtil.NO_TEXTURE
     private var mScreenSurfaceTexture: SurfaceTexture? = null
     private var mRenderHandler: VideoRenderHandler? = null
     private var mRenderHandlerThread: HandlerThread? = null
@@ -296,7 +296,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                         targetFramebuffer = GlUtil.createFramebufferLinkTexture2D(targetTexture)
                         // 开启 GL_TEXTURE_EXTERNAL_OES 纹理
                         GLES20.glEnable(GLES11Ext.GL_TEXTURE_EXTERNAL_OES)
-                        //
+                        // 创建纹理程序
                         drawProgram = Texture2DProgram(fragmentShaderCode = Texture2DProgram.FRAGMENT_SHADER_2D)
                         sourceProgram = Texture2DProgram(fragmentShaderCode = Texture2DProgram.FRAGMENT_SHADER_SOURCE)
                         source2dProgram = Texture2DProgram(fragmentShaderCode = Texture2DProgram.FRAGMENT_SHADER_SOURCE2D)
@@ -464,7 +464,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
         private fun drawFilterFramebuffer(): Boolean {
             if (lockVideoFilter()) {
                 if (mVideoFilter != mInnerVideoFilter) {
-                    mInnerVideoFilter!!.onDestroy()
+                    mInnerVideoFilter?.onDestroy()
                     mInnerVideoFilter = mVideoFilter
                     mInnerVideoFilter?.init(videoWidth, videoHeight)
                 }

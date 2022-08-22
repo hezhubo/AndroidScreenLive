@@ -1,5 +1,6 @@
 package com.hezb.live.recorder.gles
 
+import android.graphics.Bitmap
 import android.opengl.*
 import com.hezb.live.recorder.util.LogUtil
 import java.nio.ByteBuffer
@@ -17,6 +18,8 @@ import java.nio.ShortBuffer
  * @date    2022年07月19日 21:15
  */
 object GlUtil {
+
+    const val NO_TEXTURE = -1
 
     private const val SHORT_SIZE_BYTES = 2
     private const val FLOAT_SIZE_BYTES = 4
@@ -306,6 +309,48 @@ object GlUtil {
         GLES20.glDisableVertexAttribArray(texture2DProgram.aTextureCoordLoc)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
         GLES20.glUseProgram(0)
+    }
+
+    /**
+     * bitmap转2D纹理
+     *
+     * @param image
+     * @param reUseTexture
+     * @return 纹理id
+     */
+    fun loadTexture(image: Bitmap, reUseTexture: Int): Int {
+        val textures = IntArray(1)
+        if (reUseTexture == NO_TEXTURE) {
+            GLES20.glGenTextures(1, textures, 0)
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[0])
+            GLES20.glTexParameterf(
+                GLES20.GL_TEXTURE_2D,
+                GLES20.GL_TEXTURE_MIN_FILTER,
+                GLES20.GL_LINEAR.toFloat()
+            )
+            GLES20.glTexParameterf(
+                GLES20.GL_TEXTURE_2D,
+                GLES20.GL_TEXTURE_MAG_FILTER,
+                GLES20.GL_LINEAR.toFloat()
+            )
+            GLES20.glTexParameterf(
+                GLES20.GL_TEXTURE_2D,
+                GLES20.GL_TEXTURE_WRAP_S,
+                GLES20.GL_CLAMP_TO_EDGE.toFloat()
+            )
+            GLES20.glTexParameterf(
+                GLES20.GL_TEXTURE_2D,
+                GLES20.GL_TEXTURE_WRAP_T,
+                GLES20.GL_CLAMP_TO_EDGE.toFloat()
+            )
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0)
+        } else {
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, reUseTexture)
+            GLUtils.texSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, image)
+            textures[0] = reUseTexture
+        }
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+        return textures[0]
     }
 
 }

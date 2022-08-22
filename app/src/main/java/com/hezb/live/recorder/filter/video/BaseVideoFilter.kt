@@ -27,7 +27,7 @@ abstract class BaseVideoFilter {
 
     abstract fun onDraw(
         texture: Int,
-        targetFrameBuffer: Int,
+        targetFramebuffer: Int,
         shapeBuffer: FloatBuffer,
         textureBuffer: FloatBuffer
     )

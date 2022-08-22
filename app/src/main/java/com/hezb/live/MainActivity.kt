@@ -1,26 +1,39 @@
 package com.hezb.live
 
 import android.Manifest
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.Rect
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.text.method.ScrollingMovementMethod
-import android.widget.AutoCompleteTextView
+import android.util.DisplayMetrics
+import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import com.hezb.live.recorder.RecorderClient
 import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.filter.audio.VolumeAudioFilter
+import com.hezb.live.recorder.filter.video.BaseVideoFilter
+import com.hezb.live.recorder.filter.video.IconVideoFilter
+import com.hezb.live.recorder.filter.video.VideoGroupFilter
+import com.hezb.live.recorder.filter.video.ViewVideoFilter
 import com.hezb.live.recorder.util.LogUtil
 import java.io.File
-import java.lang.StringBuilder
 import java.text.SimpleDateFormat
+
 
 /**
  * Project Name: AndroidScreenLive
@@ -116,6 +129,85 @@ class MainActivity : Activity() {
             } else {
                 requestProjection(999)
             }
+        }
+
+        // 测试音频滤镜
+        var i  = 0
+        findViewById<Button>(R.id.btn_test_audio_filter).setOnClickListener {
+            i++
+            if (i % 2 == 1) {
+                mClient.setAudioFilter(VolumeAudioFilter().also { it.setVolumeScale(0f) })
+            } else {
+                mClient.setAudioFilter(null)
+            }
+        }
+
+        // 测试视频滤镜
+        findViewById<Button>(R.id.btn_test_video_filter).setOnClickListener {
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val displayMetrics = DisplayMetrics()
+            wm.defaultDisplay.getRealMetrics(displayMetrics)
+            // 横屏，获取屏幕尺寸
+            val screenWidth = displayMetrics.heightPixels
+            val screenHeight = displayMetrics.widthPixels
+            val videoSize = mClient.getVideoSize()
+            val filterList = ArrayList<BaseVideoFilter>()
+            filterList.add(
+                IconVideoFilter(
+                    BitmapFactory.decodeResource(
+                        resources,
+                        R.drawable.app_png_shuiyin
+                    ),
+                    IconVideoFilter.getFitCenterRectF(
+                        Rect(screenWidth - 100, 0, screenWidth, 100),
+                        screenWidth,
+                        screenHeight,
+                        videoSize.width,
+                        videoSize.height
+                    )
+                )
+            )
+            val fakeView = object : ViewVideoFilter.FakeView(this) {
+                var textView: TextView? = null
+                var anim: ObjectAnimator? = null
+
+                override fun addView() {
+                    textView = TextView(context).apply {
+                        layoutParams = LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT
+                        )
+                        setTextColor(Color.WHITE)
+                        x = 30f
+                        y = 130f
+                        text = "这是文本"
+                        addView(this)
+                    }
+                }
+
+                override fun startAnim() {
+                    super.startAnim()
+                    anim = ObjectAnimator.ofFloat(textView, View.ROTATION, 0f, 360f).also {
+                        it.duration = 3000
+                        it.repeatCount = ValueAnimator.INFINITE
+                        it.start()
+                    }
+                }
+
+                override fun stopAnim() {
+                    super.stopAnim()
+                    anim?.cancel()
+                }
+            }
+            val viewSize = ViewVideoFilter.getCenterScaleViewSize(
+                screenWidth,
+                screenHeight,
+                videoSize.width,
+                videoSize.height
+            )
+            filterList.add(ViewVideoFilter(fakeView, viewSize.width, viewSize.height))
+            val videoGroupFilter = VideoGroupFilter(filterList)
+            mClient.setVideoFilter(videoGroupFilter)
         }
     }
 

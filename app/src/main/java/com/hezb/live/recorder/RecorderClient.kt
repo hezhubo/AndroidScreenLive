@@ -5,6 +5,9 @@ import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.media.projection.MediaProjection
 import com.hezb.live.recorder.core.*
+import com.hezb.live.recorder.filter.audio.BaseAudioFilter
+import com.hezb.live.recorder.filter.video.BaseVideoFilter
+import com.hezb.live.recorder.model.Size
 import com.hezb.live.recorder.rtmp.RtmpPusher
 import com.hezb.live.recorder.util.LogUtil
 import kotlinx.coroutines.*
@@ -352,6 +355,27 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
         GlobalScope.launch(Dispatchers.Main) {
             onStateChangeCallback?.onPusherWriteError(errorTimes)
         }
+    }
+
+    fun getVideoSize(): Size {
+        return mRecorderConfig?.videoSize ?: Size(1, 1)
+    }
+
+    fun resetVideoBitrate(bitrate: Int) {
+        mRecorderConfig?.let {
+            if (it.videoBitrate != bitrate) {
+                it.videoBitrate = bitrate
+                mScreenCore?.resetVideoBitrate(bitrate)
+            }
+        }
+    }
+
+    fun setVideoFilter(baseVideoFilter: BaseVideoFilter?) {
+        mScreenCore?.setVideoFilter(baseVideoFilter)
+    }
+
+    fun setAudioFilter(baseAudioFilter: BaseAudioFilter?) {
+        mAudioCore?.setAudioFilter(baseAudioFilter)
     }
 
     /**

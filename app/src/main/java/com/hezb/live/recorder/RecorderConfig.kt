@@ -15,7 +15,10 @@ import com.hezb.live.recorder.model.Size
  */
 class RecorderConfig {
 
-    /** 视频尺寸（分辨率） */
+    /**
+     * 视频尺寸（分辨率）
+     * 如果设置的视频尺寸宽高比与实际的屏幕尺寸宽高比不一致时，画面会以居中适应方式填充黑边
+     */
     var videoSize = Size(DEFAULT_VIDEO_WIDTH, DEFAULT_VIDEO_HEIGHT)
     /** 视频码率 */
     var videoBitrate = DEFAULT_VIDEO_BITRATE
