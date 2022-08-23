@@ -31,6 +31,4 @@ object RtmpClient {
 
     external fun close(rtmpPointer: Long): Int
 
-    external fun getIpAddr(rtmpPointer: Long): String?
-
 }

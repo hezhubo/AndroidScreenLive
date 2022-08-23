@@ -1,6 +1,7 @@
 #include <malloc.h>
 #include "librtmp.h"
 #include "librtmp/rtmp.h"
+#include "log.h"
 
  JNIEXPORT jlong JNICALL Java_com_hezb_live_recorder_rtmp_RtmpClient_open
  (JNIEnv * env, jobject thiz, jstring url_, jboolean isPublishMode) {
@@ -110,13 +111,3 @@
  	RTMP_Free((RTMP*)rtmp);
  	return 0;
  }
-
-JNIEXPORT jstring JNICALL Java_com_hezb_live_recorder_rtmp_RtmpClient_getIpAddr
-		(JNIEnv * env, jobject thiz, jlong rtmp) {
-	if(rtmp!=0){
-		RTMP* r= (RTMP*)rtmp;
-		return (*env)->NewStringUTF(env, r->ipaddr);
-	}else {
-		return (*env)->NewStringUTF(env, "");
-	}
-}

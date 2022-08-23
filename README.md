@@ -9,11 +9,10 @@
 - [x] 支持视频滤镜
 - [x] 支持音频滤镜
 
-TODO
-* 优化librtmp
 
 ----
 参考项目：
 * [grafika](https://github.com/google/grafika)
 * [librestreaming](https://github.com/lakeinchina/librestreaming)
 * [srs](https://github.com/ossrs/srs) （推流服务器）
+* [rtmpdump](http://git.ffmpeg.org/rtmpdump)

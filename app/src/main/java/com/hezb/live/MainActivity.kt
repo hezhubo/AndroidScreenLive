@@ -187,6 +187,7 @@ class MainActivity : Activity() {
 
                 override fun startAnim() {
                     super.startAnim()
+                    // TODO 添加动画非常消耗内存！！！
                     anim = ObjectAnimator.ofFloat(textView, View.ROTATION, 0f, 360f).also {
                         it.duration = 3000
                         it.repeatCount = ValueAnimator.INFINITE
@@ -281,9 +282,9 @@ class MainActivity : Activity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == Activity.RESULT_OK) {
+        if (resultCode == Activity.RESULT_OK && data != null) {
             val mediaProjection =
                 mMediaProjectionManager?.getMediaProjection(resultCode, data) ?: return
             val config = RecorderConfig()
