@@ -10,7 +10,10 @@ import com.hezb.live.recorder.filter.video.BaseVideoFilter
 import com.hezb.live.recorder.model.Size
 import com.hezb.live.recorder.rtmp.RtmpPusher
 import com.hezb.live.recorder.util.LogUtil
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 
 /**
@@ -268,37 +271,38 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
         isRecording = false
         currentState = STATE_STOPPING
 
-        var error = ErrorCode.NO_ERROR
-        mMediaMuxer?.let {
-            try {
-                it.stop()
-            } catch (e: Exception) {
-                LogUtil.e(msg = "media muxer stop error!", tr = e)
-                error = ErrorCode.MEDIA_MUXER_STOP_ERROR
-            }
-            try {
-                it.release()
-            } catch (e: Exception) {
-                LogUtil.e(msg = "media muxer release error!", tr = e)
-                error = ErrorCode.MEDIA_MUXER_RELEASE_ERROR
-            }
-        }
-        val outputSuccess = error == ErrorCode.NO_ERROR// 标记视频混合输出成功
-        videoTrackIndex = -1
-        audioTrackIndex = -1
-        mMediaMuxer = null
-
         GlobalScope.launch(Dispatchers.Default) {
             val deferred = GlobalScope.async(Dispatchers.IO) {
                 mRtmpPusher?.stop()
-                mScreenCore?.stop()
                 mAudioCore?.stop()
+                mScreenCore?.stop()
             }
             deferred.await()
             currentState = STATE_STOPPED
             if (mRtmpPusher != null) {
                 onStateChangeCallback?.onPusherStop()
             }
+
+            var error = ErrorCode.NO_ERROR
+            mMediaMuxer?.let {
+                try {
+                    it.stop()
+                } catch (e: Exception) {
+                    LogUtil.e(msg = "media muxer stop error!", tr = e)
+                    error = ErrorCode.MEDIA_MUXER_STOP_ERROR
+                }
+                try {
+                    it.release()
+                } catch (e: Exception) {
+                    LogUtil.e(msg = "media muxer release error!", tr = e)
+                    error = ErrorCode.MEDIA_MUXER_RELEASE_ERROR
+                }
+            }
+            val outputSuccess = error == ErrorCode.NO_ERROR// 标记视频混合输出成功
+            videoTrackIndex = -1
+            audioTrackIndex = -1
+            mMediaMuxer = null
+
             if (outputSuccess && videoOutputPath != null) {
                 onStateChangeCallback?.onMuxerStopSuccess(videoOutputPath!!)
             } else {

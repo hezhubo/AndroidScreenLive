@@ -28,17 +28,7 @@ class Texture2DProgram(vertexShaderCode: String = VERTEX_SHADER, fragmentShaderC
                 "varying highp vec2 vTextureCoord;\n" +
                 "uniform sampler2D uTexture;\n" +
                 "void main(){\n" +
-                "    vec4 color   = texture2D(uTexture, vTextureCoord);\n" +
-                "    gl_FragColor = color;\n" +
-                "}"
-        const val FRAGMENT_SHADER_SOURCE = "" +
-                "#extension GL_OES_EGL_image_external : require\n" +
-                "precision highp float;\n" +
-                "varying highp vec2 vTextureCoord;\n" +
-                "uniform sampler2D uTexture;\n" +
-                "void main(){\n" +
-                "    vec4 color   = texture2D(uTexture, vTextureCoord);\n" +
-                "    gl_FragColor = color;\n" +
+                "    gl_FragColor = texture2D(uTexture, vTextureCoord);\n" +
                 "}"
         const val FRAGMENT_SHADER_SOURCE2D = "" +
                 "#extension GL_OES_EGL_image_external : require\n" +
@@ -46,8 +36,7 @@ class Texture2DProgram(vertexShaderCode: String = VERTEX_SHADER, fragmentShaderC
                 "varying highp vec2 vTextureCoord;\n" +
                 "uniform samplerExternalOES uTexture;\n" +
                 "void main(){\n" +
-                "    vec4 color   = texture2D(uTexture, vTextureCoord);\n" +
-                "    gl_FragColor = color;\n" +
+                "    gl_FragColor = texture2D(uTexture, vTextureCoord);\n" +
                 "}"
     }
 

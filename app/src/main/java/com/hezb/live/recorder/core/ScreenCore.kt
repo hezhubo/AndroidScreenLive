@@ -43,6 +43,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
     private var mEncoderOutputThread: VideoEncoderOutputThread? = null
     private var mVirtualDisplay: VirtualDisplay? = null
 
+    private val mStopSyncObj = Object()
     /** 滤镜锁 */
     private val mFilterLock = ReentrantLock(false)
     /** 滤镜 */
@@ -170,9 +171,21 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
         mRenderHandler?.let {
             it.removeCallbacksAndMessages(null)
             it.sendEmptyMessage(MSG_WHAT_STOP)
+            synchronized(mStopSyncObj) {
+                try {
+                    mStopSyncObj.wait() // 阻塞
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                it.removeCallbacksAndMessages(null)
+                stopRenderThread()
+                stopAll()
+            }
         } ?: stopAll()
         mRenderHandler = null
+    }
 
+    private fun stopRenderThread() {
         mRenderHandlerThread?.let {
             it.quitSafely()
             try {
@@ -266,17 +279,16 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
         private var eglSurface: EGLSurface = EGL14.EGL_NO_SURFACE
         private var sourceTexture: Int = 0
         private var sourceFramebuffer: Int = 0
-        private var targetTexture: Int = 0
-        private var targetFramebuffer: Int = 0
-        private var drawProgram: Texture2DProgram? = null
-        private var sourceProgram: Texture2DProgram? = null
+
+        /** 屏幕(颜色)纹理附着程序 */
         private var source2dProgram: Texture2DProgram? = null
+        /** 最终绘制到编码器的纹理附着程序 */
+        private var drawProgram: Texture2DProgram? = null
 
         private val drawIndicesBuffer = GlUtil.getDrawIndicesBuffer()
         private val shapeVerticesBuffer = GlUtil.getShapeVerticesBuffer()
         private val source2DVerticesBuffer = GlUtil.getScreenTextureVerticesBuffer()
-        private val sourceVerticesBuffer = GlUtil.getScreenTextureVerticesBuffer()
-        private val targetVerticesBuffer = GlUtil.getScreenTextureVerticesBuffer()
+        private val targetVerticesBuffer = GlUtil.getTargetTextureVerticesBuffer()
 
         /** 滤镜 */
         private var mInnerVideoFilter: BaseVideoFilter? = null
@@ -292,13 +304,10 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                         // 创建空纹理及帧缓冲区对象
                         sourceTexture = GlUtil.createImageTexture(videoWidth, videoHeight)
                         sourceFramebuffer = GlUtil.createFramebufferLinkTexture2D(sourceTexture)
-                        targetTexture = GlUtil.createImageTexture(videoWidth, videoHeight)
-                        targetFramebuffer = GlUtil.createFramebufferLinkTexture2D(targetTexture)
                         // 开启 GL_TEXTURE_EXTERNAL_OES 纹理
                         GLES20.glEnable(GLES11Ext.GL_TEXTURE_EXTERNAL_OES)
                         // 创建纹理程序
                         drawProgram = Texture2DProgram(fragmentShaderCode = Texture2DProgram.FRAGMENT_SHADER_2D)
-                        sourceProgram = Texture2DProgram(fragmentShaderCode = Texture2DProgram.FRAGMENT_SHADER_SOURCE)
                         source2dProgram = Texture2DProgram(fragmentShaderCode = Texture2DProgram.FRAGMENT_SHADER_SOURCE2D)
 
                         isRecording = true
@@ -369,30 +378,25 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                                 eglCore?.let {
                                     it.makeCurrent(eglSurface)
 
-                                    if (!drawFilterFramebuffer()) {
-                                        sourceProgram?.let { program ->
-                                            GlUtil.draw2DFramebuffer(
-                                                GLES20.GL_TEXTURE_2D,
+                                    drawProgram?.let { program ->
+                                        val filterTexture = drawFilterFramebuffer()
+                                        if (filterTexture == GlUtil.NO_TEXTURE) {
+                                            GlUtil.drawTexture2D(
                                                 sourceTexture,
-                                                targetFramebuffer,
-                                                videoWidth,
-                                                videoHeight,
                                                 program,
                                                 shapeVerticesBuffer,
-                                                sourceVerticesBuffer,
+                                                targetVerticesBuffer,
+                                                drawIndicesBuffer
+                                            )
+                                        } else {
+                                            GlUtil.drawTexture2D(
+                                                filterTexture,
+                                                program,
+                                                shapeVerticesBuffer,
+                                                targetVerticesBuffer,
                                                 drawIndicesBuffer
                                             )
                                         }
-                                    }
-
-                                    drawProgram?.let { program ->
-                                        GlUtil.drawTexture2D(
-                                            targetTexture,
-                                            program,
-                                            shapeVerticesBuffer,
-                                            targetVerticesBuffer,
-                                            drawIndicesBuffer
-                                        )
                                         it.setPresentationTime(eglSurface, getPresentationTimeUs() * 1000)
                                         it.swapBuffers(eglSurface)
                                     }
@@ -407,6 +411,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
 
                 MSG_WHAT_STOP -> {
                     isRecording = false
+                    removeCallbacksAndMessages(null)
                     try {
                         eglCore?.let {
                             it.makeCurrent(eglSurface)
@@ -417,10 +422,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                                 mFilterLock.unlock()
                             }
                             GLES20.glDeleteProgram(drawProgram?.program ?: 0)
-                            GLES20.glDeleteProgram(sourceProgram?.program ?: 0)
                             GLES20.glDeleteProgram(source2dProgram?.program ?: 0)
-                            GLES20.glDeleteFramebuffers(1, intArrayOf(targetFramebuffer), 0)
-                            GLES20.glDeleteTextures(1, intArrayOf(targetTexture), 0)
                             GLES20.glDeleteFramebuffers(1, intArrayOf(sourceFramebuffer), 0)
                             GLES20.glDeleteTextures(1, intArrayOf(sourceTexture), 0)
                             it.releaseSurface(eglSurface)
@@ -432,9 +434,13 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                         e.printStackTrace()
                     }
 
-                    stopAll() // 编码器及VirtualDisplay、SurfaceTexture在此处释放
-
-                    removeCallbacksAndMessages(null)
+                    synchronized(mStopSyncObj) {
+                        try {
+                            mStopSyncObj.notify() // 唤醒stop
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                 }
 
                 MSG_WHAT_RESET_BITRATE -> {
@@ -461,28 +467,22 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
             return millis * 1000
         }
 
-        private fun drawFilterFramebuffer(): Boolean {
+        private fun drawFilterFramebuffer(): Int {
             if (lockVideoFilter()) {
                 if (mVideoFilter != mInnerVideoFilter) {
                     mInnerVideoFilter?.onDestroy()
                     mInnerVideoFilter = mVideoFilter
                     mInnerVideoFilter?.init(videoWidth, videoHeight)
                 }
-                val drawFilter = if (mInnerVideoFilter != null) {
-                    mInnerVideoFilter!!.onDraw(
-                        sourceTexture,
-                        targetFramebuffer,
-                        shapeVerticesBuffer,
-                        sourceVerticesBuffer
-                    )
-                    true
-                } else {
-                    false
-                }
+                val filterTexture = mInnerVideoFilter?.onDraw(
+                    sourceTexture,
+                    shapeVerticesBuffer,
+                    targetVerticesBuffer
+                ) ?: GlUtil.NO_TEXTURE
                 unlockVideoFilter()
-                return drawFilter
+                return filterTexture
             }
-            return false
+            return GlUtil.NO_TEXTURE
         }
 
         /**
@@ -559,6 +559,10 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                                     }
                                 }
                                 encoder.releaseOutputBuffer(eobIndex, false)
+
+                                if (outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                                    isRunning = false
+                                }
                             }
                         }
                     }

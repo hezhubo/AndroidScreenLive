@@ -26,11 +26,10 @@ abstract class BaseVideoFilter {
     }
 
     abstract fun onDraw(
-        texture: Int,
-        targetFramebuffer: Int,
-        shapeBuffer: FloatBuffer,
-        textureBuffer: FloatBuffer
-    )
+        sourceTexture: Int,
+        shapeVerticesBuffer: FloatBuffer,
+        textureVerticesBuffer: FloatBuffer
+    ): Int
 
     open fun onDestroy() {}
 

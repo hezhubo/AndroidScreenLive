@@ -19,13 +19,16 @@ import java.nio.ShortBuffer
  */
 object GlUtil {
 
+    /** 无效纹理id */
     const val NO_TEXTURE = -1
 
-    private const val SHORT_SIZE_BYTES = 2
-    private const val FLOAT_SIZE_BYTES = 4
+    private const val SHORT_SIZE_BYTES = 2 // short占2字节
+    private const val FLOAT_SIZE_BYTES = 4 // float占4字节
 
+    /** 绘制的(两个)三角形顶点序号标记 */
     private val drawIndices = shortArrayOf(0, 1, 2, 0, 2, 3)
 
+    /** 四边形(共用一边的两个三角形)顶点坐标 (gl_Position) */
     private val squareVertices = floatArrayOf(
         -1.0f, 1.0f,
         -1.0f, -1.0f,
@@ -33,6 +36,7 @@ object GlUtil {
         1.0f, 1.0f
     )
 
+    /** 屏幕纹理顶点坐标 (vTextureCoord) */
     private val screenTextureVertices = floatArrayOf(
         0.0f, 0.0f,
         0.0f, 1.0f,
@@ -40,28 +44,53 @@ object GlUtil {
         1.0f, 0.0f
     )
 
+    /** 绘制输出纹理顶点坐标 */
+    private val targetTextureVertices = floatArrayOf(
+        0.0f, 1.0f,
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f
+    )
+
     fun getDrawIndicesBuffer(): ShortBuffer {
-        val result = ByteBuffer.allocateDirect(SHORT_SIZE_BYTES * drawIndices.size)
-            .order(ByteOrder.nativeOrder()).asShortBuffer()
-        result.put(drawIndices)
-        result.position(0)
-        return result
+        // 创建内存块缓冲区
+        val buffer = ByteBuffer
+            .allocateDirect(SHORT_SIZE_BYTES * drawIndices.size)
+            .order(ByteOrder.nativeOrder())
+            .asShortBuffer()
+        buffer.put(drawIndices)
+        buffer.position(0)
+        return buffer
     }
 
     fun getShapeVerticesBuffer(): FloatBuffer {
-        val result = ByteBuffer.allocateDirect(FLOAT_SIZE_BYTES * squareVertices.size)
-            .order(ByteOrder.nativeOrder()).asFloatBuffer()
-        result.put(squareVertices)
-        result.position(0)
-        return result
+        val buffer = ByteBuffer
+            .allocateDirect(FLOAT_SIZE_BYTES * squareVertices.size)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        buffer.put(squareVertices)
+        buffer.position(0)
+        return buffer
     }
 
     fun getScreenTextureVerticesBuffer(): FloatBuffer {
-        val result = ByteBuffer.allocateDirect(FLOAT_SIZE_BYTES * screenTextureVertices.size)
-            .order(ByteOrder.nativeOrder()).asFloatBuffer()
-        result.put(screenTextureVertices)
-        result.position(0)
-        return result
+        val buffer = ByteBuffer
+            .allocateDirect(FLOAT_SIZE_BYTES * screenTextureVertices.size)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        buffer.put(screenTextureVertices)
+        buffer.position(0)
+        return buffer
+    }
+
+    fun getTargetTextureVerticesBuffer(): FloatBuffer {
+        val buffer = ByteBuffer
+            .allocateDirect(FLOAT_SIZE_BYTES * targetTextureVertices.size)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+        buffer.put(targetTextureVertices)
+        buffer.position(0)
+        return buffer
     }
 
     /**
@@ -191,8 +220,8 @@ object GlUtil {
      * @param width
      * @param height
      * @param texture2DProgram
-     * @param shapeBuffer
-     * @param textureBuffer
+     * @param shapeVerticesBuffer
+     * @param textureVerticesBuffer
      * @param drawIndicesBuffer
      */
     fun draw2DFramebuffer(
@@ -202,8 +231,8 @@ object GlUtil {
         width: Int,
         height: Int,
         texture2DProgram: Texture2DProgram,
-        shapeBuffer: FloatBuffer,
-        textureBuffer: FloatBuffer,
+        shapeVerticesBuffer: FloatBuffer,
+        textureVerticesBuffer: FloatBuffer,
         drawIndicesBuffer: ShortBuffer
     ) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebufferId)
@@ -220,16 +249,16 @@ object GlUtil {
             2,
             GLES20.GL_FLOAT,
             false,
-            2 * 4,
-            shapeBuffer
+            0,
+            shapeVerticesBuffer
         )
         GLES20.glVertexAttribPointer(
             texture2DProgram.aTextureCoordLoc,
             2,
             GLES20.GL_FLOAT,
             false,
-            2 * 4,
-            textureBuffer
+            0,
+            textureVerticesBuffer
         )
         // 指定视口尺寸
         GLES20.glViewport(0, 0, width, height)
@@ -258,15 +287,15 @@ object GlUtil {
      *
      * @param textureId
      * @param texture2DProgram
-     * @param shapeBuffer
-     * @param textureBuffer
+     * @param shapeVerticesBuffer
+     * @param textureVerticesBuffer
      * @param drawIndicesBuffer
      */
     fun drawTexture2D(
         textureId: Int,
         texture2DProgram: Texture2DProgram,
-        shapeBuffer: FloatBuffer,
-        textureBuffer: FloatBuffer,
+        shapeVerticesBuffer: FloatBuffer,
+        textureVerticesBuffer: FloatBuffer,
         drawIndicesBuffer: ShortBuffer
     ) {
         GLES20.glUseProgram(texture2DProgram.program)
@@ -281,16 +310,16 @@ object GlUtil {
             2,
             GLES20.GL_FLOAT,
             false,
-            2 * 4,
-            shapeBuffer
+            0,
+            shapeVerticesBuffer
         )
         GLES20.glVertexAttribPointer(
             texture2DProgram.aTextureCoordLoc,
             2,
             GLES20.GL_FLOAT,
             false,
-            2 * 4,
-            textureBuffer
+            0,
+            textureVerticesBuffer
         )
         // 清除颜色缓冲区
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)

@@ -519,6 +519,10 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                                     }
                                 }
                                 encoder.releaseOutputBuffer(eobIndex, false)
+
+                                if (outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                                    isRunning = false
+                                }
                             }
                         }
                     }
