@@ -9,7 +9,9 @@ import com.hezb.live.recorder.RecorderConfig
 import com.hezb.live.recorder.filter.audio.BaseAudioFilter
 import com.hezb.live.recorder.model.AudioBuffer
 import com.hezb.live.recorder.util.LogUtil
-import java.util.concurrent.*
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -37,7 +39,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
     private var mAudioFilter: BaseAudioFilter? = null
 
     /** 音频数据缓存池(复用ByteArray，避免多次申请内存) */
-    private val audioBufferPool = HashSet<AudioBuffer>()
+    private val audioBufferPool = ArrayList<AudioBuffer>()
     /** 音频PCM数据阻塞队列 */
     private val pcmAudioBufferQueue: BlockingQueue<AudioBuffer> = LinkedBlockingQueue()
     private val pcmBufferSize = 2048 // PCM数据缓存大小 2k
@@ -239,21 +241,22 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
 
     @Synchronized
     private fun getAudioBuffer(): AudioBuffer {
-        return if (audioBufferPool.isNotEmpty()) {
-            val tempBuffer = audioBufferPool.iterator().next()
-            audioBufferPool.remove(tempBuffer)
-            tempBuffer
-        } else {
-            AudioBuffer(ByteArray(pcmBufferSize))
+        for (audioBuffer in audioBufferPool) {
+            if (audioBuffer.free) {
+                audioBuffer.free = false // 标记为正在被使用
+                return audioBuffer
+            }
         }
+        if (audioBufferPool.size < 10) {
+            val newAudioBuffer = AudioBuffer(ByteArray(pcmBufferSize))
+            audioBufferPool.add(newAudioBuffer)
+            return newAudioBuffer
+        }
+        return AudioBuffer(ByteArray(pcmBufferSize))
     }
 
-    @Synchronized
-    private fun putAudioBufferToPool(audioBuffer: AudioBuffer) {
-        if (audioBufferPool.size >= 10) {
-            return
-        }
-        audioBufferPool.add(audioBuffer)
+    private fun releaseAudioBuffer(audioBuffer: AudioBuffer) {
+        audioBuffer.free = true
     }
 
     /**
@@ -276,13 +279,10 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                 size = mAudioRecord?.read(audioBuffer.byteArray, 0, audioBuffer.byteArray.size) ?: 0
 
                 pbSize = 0
-                mPlaybackAudioRecord?.let {
-                    pbAudioBuffer = getAudioBuffer()
-                    pbSize = mPlaybackAudioRecord?.read(
-                        pbAudioBuffer!!.byteArray,
-                        0,
-                        pbAudioBuffer!!.byteArray.size
-                    ) ?: 0
+                mPlaybackAudioRecord?.let { audioRecord ->
+                    pbAudioBuffer = getAudioBuffer().also {
+                        pbSize = audioRecord.read(it.byteArray, 0, it.byteArray.size)
+                    }
                 }
 
                 if (isRunning && (size > 0 || pbSize > 0) && !isPause) {
@@ -290,16 +290,16 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                     pbAudioBuffer?.let {
                         it.size = pbSize
                         mixPcm(audioBuffer, it)
-                        putAudioBufferToPool(it)
+                        releaseAudioBuffer(it)
                         pbAudioBuffer = null
                     }
                     pcmAudioBufferQueue.put(audioBuffer)
                 } else {
-                    putAudioBufferToPool(audioBuffer) // 添加到缓存池
+                    releaseAudioBuffer(audioBuffer)
                     pbAudioBuffer?.let {
-                        putAudioBufferToPool(it)
-                        pbAudioBuffer = null
+                        releaseAudioBuffer(it)
                     }
+                    pbAudioBuffer = null
                 }
             }
         }
@@ -397,7 +397,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                         targetAudioBuffer.size = audioBuffer.size
                         val tempAudioBuffer = audioBuffer
                         audioBuffer = targetAudioBuffer
-                        putAudioBufferToPool(tempAudioBuffer)
+                        releaseAudioBuffer(tempAudioBuffer)
                     }
                     unlockAudioFilter()
                 }
@@ -423,7 +423,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                             eibIndex,
                             0,
                             audioBuffer.size,
-                            pts, // 微妙
+                            pts, // 微秒
                             0
                         )
                     } else {
@@ -431,7 +431,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                     }
                 }
 
-                putAudioBufferToPool(audioBuffer)
+                releaseAudioBuffer(audioBuffer)
             }
         }
 
