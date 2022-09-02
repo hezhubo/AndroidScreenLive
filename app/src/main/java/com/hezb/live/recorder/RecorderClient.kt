@@ -10,10 +10,7 @@ import com.hezb.live.recorder.filter.video.BaseVideoFilter
 import com.hezb.live.recorder.model.Size
 import com.hezb.live.recorder.rtmp.RtmpPusher
 import com.hezb.live.recorder.util.LogUtil
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.nio.ByteBuffer
 
 /**
@@ -231,8 +228,8 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
                 }
             }
         }
-        GlobalScope.launch(Dispatchers.Default) {
-            val deferred = GlobalScope.async(Dispatchers.IO) {
+        MainScope().launch {
+            val deferred = async(Dispatchers.IO) {
                 return@async mRtmpPusher?.start(rtmpUrl) ?: false
             }
             val result = deferred.await()
@@ -271,8 +268,8 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
         isRecording = false
         currentState = STATE_STOPPING
 
-        GlobalScope.launch(Dispatchers.Default) {
-            val deferred = GlobalScope.async(Dispatchers.IO) {
+        MainScope().launch {
+            val deferred = async(Dispatchers.IO) {
                 mRtmpPusher?.stop()
                 mAudioCore?.stop()
                 mScreenCore?.stop()
@@ -347,7 +344,7 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
     }
 
     override fun onError(error: String) {
-        GlobalScope.launch(Dispatchers.Main) {
+        MainScope().launch {
             // 回到主线程停止client
             if (isRecording) {
                 stop()
@@ -356,7 +353,7 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
     }
 
     override fun onError(errorTimes: Int) {
-        GlobalScope.launch(Dispatchers.Main) {
+        MainScope().launch {
             onStateChangeCallback?.onPusherWriteError(errorTimes)
         }
     }
