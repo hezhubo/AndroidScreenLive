@@ -44,9 +44,11 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
     private val pcmAudioBufferQueue: BlockingQueue<AudioBuffer> = LinkedBlockingQueue()
     private val pcmBufferSize = 2048 // PCM数据缓存大小 2k
     private val mineType = MediaFormat.MIMETYPE_AUDIO_AAC // 编码格式
+    private var audioCodecName: String? = null
 
     @SuppressLint("MissingPermission")
     override fun prepare(config: RecorderConfig): Int {
+        audioCodecName = config.audioCodecName
         val audioChannel = if (config.audioChannelCount == 1) {
             AudioFormat.CHANNEL_IN_MONO
         } else {
@@ -121,21 +123,34 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
     private fun createAudioCodec(config: RecorderConfig): Boolean {
         mEncodeFormat = MediaFormat().apply {
             setString(MediaFormat.KEY_MIME, mineType)
-            setInteger(
-                MediaFormat.KEY_AAC_PROFILE,
-                MediaCodecInfo.CodecProfileLevel.AACObjectLC
-            ) // AAC编码规格 LC：低复杂度规格
+            if (config.audioCodecAACProfile != 0) {
+                setInteger(MediaFormat.KEY_AAC_PROFILE, config.audioCodecAACProfile)
+            }
             setInteger(MediaFormat.KEY_SAMPLE_RATE, config.audioSampleRate)
             setInteger(MediaFormat.KEY_CHANNEL_COUNT, config.audioChannelCount)
             setInteger(MediaFormat.KEY_BIT_RATE, config.audioBitrate)
         }
         LogUtil.i(msg = "audio encode format : ${mEncodeFormat.toString()}")
+        mEncoder = createEncoder(audioCodecName)
+        return mEncoder != null
+    }
+
+    private fun createEncoder(audioCodecName: String?) : MediaCodec? {
+        if (!audioCodecName.isNullOrEmpty()) {
+            try {
+                return MediaCodec.createByCodecName(audioCodecName)
+            } catch (e: Exception) {
+                LogUtil.e(
+                    msg = "error audio codec name : ${audioCodecName}, can't create audio encoder!",
+                    tr = e
+                )
+            }
+        }
         return try {
-            mEncoder = MediaCodec.createEncoderByType(mineType)
-            true
+            MediaCodec.createEncoderByType(mineType)
         } catch (e: Exception) {
             LogUtil.e(msg = "can't create audio encoder!", tr = e)
-            false
+            null
         }
     }
 
@@ -147,7 +162,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
         return try {
             // 启动编码器
             if (mEncoder == null) {
-                mEncoder = MediaCodec.createEncoderByType(mineType)
+                mEncoder = createEncoder(audioCodecName)
             }
             mEncoder?.apply {
                 configure(mEncodeFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)

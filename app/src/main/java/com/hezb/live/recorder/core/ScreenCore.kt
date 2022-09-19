@@ -50,6 +50,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
     private var mVideoFilter: BaseVideoFilter? = null
 
     private val mineType = MediaFormat.MIMETYPE_VIDEO_AVC
+    private var videoCodecName: String? = null
     private var videoWidth = 0
     private var videoHeight = 0
     private var dpi = 1
@@ -61,6 +62,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
     private var isRecording = false
 
     override fun prepare(config: RecorderConfig): Int {
+        videoCodecName = config.videoCodecName
         videoWidth = config.videoSize.width
         videoHeight = config.videoSize.height
         dpi = config.virtualDisplayDpi
@@ -87,21 +89,48 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
             setInteger(MediaFormat.KEY_CAPTURE_RATE, config.videoFrameRate)
             setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / config.videoFrameRate)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, config.videoFrameInterval)
+            if (config.videoCodecProfile != 0 && config.videoCodecProfileLevel != 0) {
+                setInteger(MediaFormat.KEY_PROFILE, config.videoCodecProfile)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    setInteger(MediaFormat.KEY_LEVEL, config.videoCodecProfileLevel)
+                }
+            }
+            if (config.videoBitrateMode >= 0) {
+                setInteger(MediaFormat.KEY_BITRATE_MODE, config.videoBitrateMode)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && config.videoMaxBFrames > 0) {
+                setInteger(MediaFormat.KEY_MAX_B_FRAMES, config.videoMaxBFrames)
+            }
         }
         LogUtil.i(msg = "video encode format : ${mEncodeFormat.toString()}")
+        mEncoder = createEncoder(videoCodecName)
+        return mEncoder != null
+    }
+
+    private fun createEncoder(videoCodecName: String?): MediaCodec? {
+        if (!videoCodecName.isNullOrEmpty()) {
+            try {
+                return MediaCodec.createByCodecName(videoCodecName)
+            } catch (e: Exception) {
+                LogUtil.e(
+                    msg = "error video codec name : ${videoCodecName}, can't create video encoder!",
+                    tr = e
+                )
+            }
+        }
         return try {
-            mEncoder = MediaCodec.createEncoderByType(mineType)
-            true
+            MediaCodec.createEncoderByType(mineType)
         } catch (e: Exception) {
             LogUtil.e(msg = "can't create video encoder!", tr = e)
-            false
+            null
         }
     }
 
     override fun start(collector: DataCollector): Int {
         // 启动解码器
         try {
-            val encoder = mEncoder ?: MediaCodec.createEncoderByType(mineType).also { mEncoder = it }
+            val encoder = mEncoder ?: createEncoder(videoCodecName).also { mEncoder = it }
+            ?: return ErrorCode.VIDEO_START_ENCODER_ERROR
             encoder.configure(mEncodeFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             mEncoderInputSurface = encoder.createInputSurface()
             encoder.start()
@@ -219,7 +248,6 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
     }
 
     override fun release() {
-        mediaProjection?.stop()
         mediaProjection = null
     }
 

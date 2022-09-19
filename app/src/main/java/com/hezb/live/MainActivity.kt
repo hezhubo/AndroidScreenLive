@@ -1,38 +1,25 @@
 package com.hezb.live
 
-import android.Manifest
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
-import android.app.Activity
-import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
-import android.graphics.Color
-import android.graphics.Rect
-import android.media.projection.MediaProjectionManager
-import android.os.Build
+import android.content.ServiceConnection
 import android.os.Bundle
-import android.os.Environment
-import android.text.method.ScrollingMovementMethod
-import android.util.DisplayMetrics
-import android.view.View
-import android.view.ViewGroup
-import android.view.WindowManager
-import android.widget.Button
-import android.widget.TextView
-import androidx.core.app.ActivityCompat
-import com.hezb.live.recorder.RecorderClient
+import android.os.IBinder
+import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Button
+import androidx.compose.material.Text
+import androidx.compose.material.TextField
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.hezb.live.recorder.RecorderConfig
-import com.hezb.live.recorder.filter.audio.VolumeAudioFilter
-import com.hezb.live.recorder.filter.video.BaseVideoFilter
-import com.hezb.live.recorder.filter.video.IconVideoFilter
-import com.hezb.live.recorder.filter.video.VideoGroupFilter
-import com.hezb.live.recorder.filter.video.ViewVideoFilter
-import com.hezb.live.recorder.util.LogUtil
-import java.io.File
-import java.text.SimpleDateFormat
 
 
 /**
@@ -44,255 +31,188 @@ import java.text.SimpleDateFormat
  * @author  hezhubo
  * @date    2022年07月12日 23:26
  */
-class MainActivity : Activity() {
+class MainActivity : AppCompatActivity() {
 
-    private lateinit var mMsgTextView: TextView
+    private lateinit var recorderMsgState: MutableState<String>
 
-    private var mMediaProjectionManager: MediaProjectionManager? = null
+    private var rtmpUrl = "rtmp://192.168.3.101/live/livestream"
 
-    private val mClient = RecorderClient()
+    private var recorderConfig = RecorderConfig()
 
-    private val rtmpUrl = "rtmp://192.168.3.101/live/livestream"
+    private var recorderAidlInterface: RecorderAidlInterface? = null
+    private val serviceConnection = object : ServiceConnection {
 
-    private var msg = StringBuilder()
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            recorderAidlInterface = RecorderAidlInterface.Stub.asInterface(service)
+            recorderAidlInterface?.setCallback(object : RecorderCallback.Stub() {
+                override fun onResult(msg: String?) {
+                    if (isBindService) {
+                        runOnUiThread {
+                            recorderMsgState.value += "\n$msg"
+                        }
+                    }
+                }
+            })
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            recorderAidlInterface = null
+            isBindService = false
+        }
+    }
+
+    private var isBindService = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        mMsgTextView = findViewById(R.id.tv_msg)
-        mMsgTextView.movementMethod = ScrollingMovementMethod()
+        startService(Intent(this, RecorderService::class.java))
 
-        mClient.onStateChangeCallback = object : RecorderClient.OnStateChangeCallback {
-            override fun onStartFailure(error: Int) {
-                msg.append("开始失败：$error \n")
-                mMsgTextView.text = msg.toString()
-            }
+        isBindService = bindService(
+            Intent(this, RecorderService::class.java),
+            serviceConnection,
+            Context.BIND_AUTO_CREATE
+        )
 
-            override fun onStopFailure(error: Int) {
-                msg.append("停止失败：$error \n")
-                mMsgTextView.text = msg.toString()
-            }
+        setContent {
+            Column(modifier = Modifier.padding(horizontal = 5.dp)) {
+                Button(modifier = Modifier.fillMaxWidth(), onClick = {
+                    val intent = Intent(this@MainActivity, RecorderConfigActivity::class.java)
+                    intent.putExtra("recorderConfig", recorderConfig)
+                    startActivityForResult(intent, 333)
+                }) {
+                    Text("编码器参数设置")
+                }
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        modifier = Modifier.weight(1f, true),
+                        contentPadding = PaddingValues(0.dp),
+                        onClick = {
+                            if (isBindService) {
+                                recorderAidlInterface?.startRecord(recorderConfig)
+                            }
+                        }) {
+                        Text(text = "开始录制")
+                    }
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Button(
+                        modifier = Modifier.weight(1f, true),
+                        contentPadding = PaddingValues(0.dp),
+                        onClick = {
+                            if (isBindService) {
+                                recorderAidlInterface?.pauseRecord()
+                            }
+                        }) {
+                        Text(text = "暂停")
+                    }
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Button(
+                        modifier = Modifier.weight(1f, true),
+                        contentPadding = PaddingValues(0.dp),
+                        onClick = {
+                            if (isBindService) {
+                                recorderAidlInterface?.resumeRecord()
+                            }
+                        }) {
+                        Text(text = "恢复")
+                    }
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Button(
+                        modifier = Modifier.weight(1f, true),
+                        contentPadding = PaddingValues(0.dp),
+                        onClick = {
+                            if (isBindService) {
+                                recorderAidlInterface?.stop()
+                            }
+                        }) {
+                        Text(text = "停止录制")
+                    }
+                }
 
-            override fun onMuxerStartSuccess() {
-                msg.append("混合器开启成功！\n")
-                mMsgTextView.text = msg.toString()
-            }
+                Spacer(modifier = Modifier.height(5.dp))
 
-            override fun onMuxerStopSuccess(outputPath: String) {
-                msg.append("混合器停止成功！输出视频路径：$outputPath\n")
-                mMsgTextView.text = msg.toString()
-            }
-
-            override fun onPusherStartSuccess() {
-                msg.append("推流器启动成功 rtmpUrl = $rtmpUrl\n")
-                mMsgTextView.text = msg.toString()
-            }
-
-            override fun onPusherStop() {
-                msg.append("推流器已停止！\n")
-                mMsgTextView.text = msg.toString()
-            }
-
-            override fun onPusherWriteError(errorTimes: Int) {
-                mMsgTextView.text = "$msg\n\n 推流写入数据失败次数：$errorTimes"
-            }
-        }
-
-        findViewById<Button>(R.id.btn_start_record).setOnClickListener {
-            if (requestPermission()) {
-                return@setOnClickListener
-            }
-            if (mClient.currentState >= RecorderClient.STATE_PREPARED) {
-                mClient.startRecord(createVideoPath())
-            } else {
-                requestProjection(888)
-            }
-        }
-
-        findViewById<Button>(R.id.btn_stop_record).setOnClickListener {
-            mClient.stop()
-        }
-
-        findViewById<Button>(R.id.btn_pause_record).setOnClickListener {
-            mClient.pauseRecord()
-        }
-
-        findViewById<Button>(R.id.btn_resume_record).setOnClickListener {
-            mClient.resumeRecord()
-        }
-
-        findViewById<Button>(R.id.btn_start_push).setOnClickListener {
-            if (mClient.currentState >= RecorderClient.STATE_PREPARED) {
-//                mClient.startPush(rtmpUrl) // 仅直播
-                mClient.startPush(rtmpUrl, createVideoPath())
-            } else {
-                requestProjection(999)
-            }
-        }
-
-        // 测试音频滤镜
-        var i  = 0
-        findViewById<Button>(R.id.btn_test_audio_filter).setOnClickListener {
-            i++
-            if (i % 2 == 1) {
-                mClient.setAudioFilter(VolumeAudioFilter().also { it.setVolumeScale(0f) })
-            } else {
-                mClient.setAudioFilter(null)
-            }
-        }
-
-        // 测试视频滤镜
-        findViewById<Button>(R.id.btn_test_video_filter).setOnClickListener {
-            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            val displayMetrics = DisplayMetrics()
-            wm.defaultDisplay.getRealMetrics(displayMetrics)
-            // 横屏，获取屏幕尺寸
-            val screenWidth = displayMetrics.heightPixels
-            val screenHeight = displayMetrics.widthPixels
-            val videoSize = mClient.getVideoSize()
-            val filterList = ArrayList<BaseVideoFilter>()
-            filterList.add(
-                IconVideoFilter(
-                    BitmapFactory.decodeResource(
-                        resources,
-                        R.drawable.app_png_shuiyin
-                    ),
-                    IconVideoFilter.getFitCenterRectF(
-                        Rect(screenWidth - 100, 0, screenWidth, 100),
-                        screenWidth,
-                        screenHeight,
-                        videoSize.width,
-                        videoSize.height
-                    )
+                TextField(
+                    value = rtmpUrl,
+                    onValueChange = {
+                        rtmpUrl = it
+                    },
+                    singleLine = true
                 )
-            )
-            val fakeView = object : ViewVideoFilter.FakeView(this) {
-                var textView: TextView? = null
-                var anim: ObjectAnimator? = null
-
-                override fun addView() {
-                    textView = TextView(context).apply {
-                        layoutParams = LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT
-                        )
-                        setTextColor(Color.WHITE)
-                        x = 30f
-                        y = 130f
-                        text = "这是文本"
-                        addView(this)
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(modifier = Modifier.weight(1f, true), onClick = {
+                        if (isBindService) {
+                            recorderAidlInterface?.startLive(recorderConfig, rtmpUrl)
+                        }
+                    }) {
+                        Text(text = "开始推流")
+                    }
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Button(modifier = Modifier.weight(1f, true), onClick = {
+                        if (isBindService) {
+                            recorderAidlInterface?.startLiveRecord(recorderConfig, rtmpUrl)
+                        }
+                    }) {
+                        Text(text = "边推边录")
+                    }
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Button(modifier = Modifier.weight(1f, true), onClick = {
+                        if (isBindService) {
+                            recorderAidlInterface?.stop()
+                        }
+                    }) {
+                        Text(text = "停止推流")
                     }
                 }
 
-                override fun startAnim() {
-                    super.startAnim()
-                    // TODO 添加动画非常消耗内存！！！
-                    anim = ObjectAnimator.ofFloat(textView, View.ROTATION, 0f, 360f).also {
-                        it.duration = 3000
-                        it.repeatCount = ValueAnimator.INFINITE
-                        it.start()
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(modifier = Modifier.weight(1f, true), onClick = {
+                        if (isBindService) {
+                            recorderAidlInterface?.testAudioFilter()
+                        }
+                    }) {
+                        Text(text = "audio filter test")
+                    }
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Button(modifier = Modifier.weight(1f, true), onClick = {
+                        if (isBindService) {
+                            recorderAidlInterface?.testVideoFilter()
+                        }
+                    }) {
+                        Text(text = "video filter test")
                     }
                 }
 
-                override fun stopAnim() {
-                    super.stopAnim()
-                    anim?.cancel()
-                }
+                recorderMsgState = remember { mutableStateOf("") }
+                Text(
+                    text = recorderMsgState.value,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                )
             }
-            val viewSize = ViewVideoFilter.getCenterScaleViewSize(
-                screenWidth,
-                screenHeight,
-                videoSize.width,
-                videoSize.height
-            )
-            filterList.add(ViewVideoFilter(fakeView, viewSize.width, viewSize.height))
-            val videoGroupFilter = VideoGroupFilter(filterList)
-            mClient.setVideoFilter(videoGroupFilter)
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        mClient.release()
-        mClient.onStateChangeCallback = null
-    }
-
-    private fun createVideoPath(): String? {
-        val outputDir = Environment.getExternalStorageDirectory().path + "/HezbRecorder/"
-        val dirFile = File(outputDir)
-        if (!dirFile.exists()) {
-            if (!dirFile.mkdirs()) {
-                return null
+        if (isBindService) {
+            recorderAidlInterface?.let {
+                it.release()
+                it.setCallback(null)
             }
-        }
-        return "${outputDir}${SimpleDateFormat("yyyyMMdd_HHmmss").format(System.currentTimeMillis())}.mp4"
-    }
-
-    /**
-     * 请求必要权限
-     */
-    private fun requestPermission() : Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val writeExternalStorage = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            val recordAudio = ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            val permissions = ArrayList<String>()
-            if (writeExternalStorage != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-            if (recordAudio != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.RECORD_AUDIO)
-            }
-            if (permissions.isEmpty()) {
-                return false
-            }
-            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 123)
-            return true
-        }
-        return false
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 123) {
-            for (result in grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    return
-                }
-            }
-        }
-    }
-
-    /**
-     * 请求录屏权限
-     */
-    private fun requestProjection(requestCode: Int) {
-        mMediaProjectionManager =
-            getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        try {
-            val captureIntent: Intent =
-                mMediaProjectionManager?.createScreenCaptureIntent() ?: return
-            startActivityForResult(captureIntent, requestCode)
-        } catch (e: ActivityNotFoundException) {
-            LogUtil.e(msg = "can not request projection!", tr = e)
+            unbindService(serviceConnection)
         }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == Activity.RESULT_OK && data != null) {
-            val mediaProjection =
-                mMediaProjectionManager?.getMediaProjection(resultCode, data) ?: return
-            val config = RecorderConfig()
-            mClient.prepare(config, mediaProjection)
-            if (requestCode == 888) {
-                mClient.startRecord(createVideoPath())
-            } else {
-                mClient.startPush(rtmpUrl, createVideoPath())
+        if (resultCode == RESULT_OK && data != null) {
+            if (requestCode == 333) {
+                val targetConfig = data.getParcelableExtra<RecorderConfig>("recorderConfig")
+                if (targetConfig != null) {
+                    recorderConfig = targetConfig
+                }
             }
         }
     }
