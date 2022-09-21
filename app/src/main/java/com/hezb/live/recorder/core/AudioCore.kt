@@ -5,7 +5,8 @@ import android.media.*
 import android.media.projection.MediaProjection
 import android.os.Build
 import android.os.SystemClock
-import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfigHelper
 import com.hezb.live.recorder.filter.audio.BaseAudioFilter
 import com.hezb.live.recorder.model.AudioBuffer
 import com.hezb.live.recorder.util.LogUtil
@@ -64,8 +65,8 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
             return ErrorCode.AUDIO_FORMAT_ERROR
         }
 
-        if (config.audioSourceType != RecorderConfig.AUDIO_SOURCE_TYPE_PLAYBACK
-            || !RecorderConfig.supportRecordPlaybackAudio()) {
+        if (config.audioSourceType != RecorderConfigHelper.AUDIO_SOURCE_TYPE_PLAYBACK
+            || !RecorderConfigHelper.supportRecordPlaybackAudio()) {
             try {
                 mAudioRecord = AudioRecord(
                     MediaRecorder.AudioSource.DEFAULT,
@@ -81,7 +82,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
             if (AudioRecord.STATE_INITIALIZED != mAudioRecord?.state) {
                 return ErrorCode.AUDIO_RECORD_STATE_ERROR
             }
-            if (config.audioSourceType == RecorderConfig.AUDIO_SOURCE_TYPE_MIC) {
+            if (config.audioSourceType == RecorderConfigHelper.AUDIO_SOURCE_TYPE_MIC) {
                 return ErrorCode.NO_ERROR
             }
         }

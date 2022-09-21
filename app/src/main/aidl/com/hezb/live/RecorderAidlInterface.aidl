@@ -2,7 +2,7 @@ package com.hezb.live;
 
 import android.content.Intent;
 import com.hezb.live.RecorderCallback;
-import com.hezb.live.recorder.RecorderConfig;
+import com.hezb.live.recorder.config.RecorderConfig;
 
 interface RecorderAidlInterface {
 

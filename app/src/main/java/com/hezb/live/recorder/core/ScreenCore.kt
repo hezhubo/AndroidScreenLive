@@ -13,7 +13,7 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.os.*
 import android.view.Surface
-import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfig
 import com.hezb.live.recorder.filter.video.BaseVideoFilter
 import com.hezb.live.recorder.gles.EglCore
 import com.hezb.live.recorder.gles.GlUtil

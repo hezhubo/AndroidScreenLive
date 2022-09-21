@@ -4,6 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.media.projection.MediaProjection
+import com.hezb.live.recorder.config.RecorderConfig
 import com.hezb.live.recorder.core.*
 import com.hezb.live.recorder.filter.audio.BaseAudioFilter
 import com.hezb.live.recorder.filter.video.BaseVideoFilter

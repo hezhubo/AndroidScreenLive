@@ -1,6 +1,6 @@
 package com.hezb.live.recorder.rtmp.packet
 
-import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfig
 import java.util.ArrayList
 
 /**

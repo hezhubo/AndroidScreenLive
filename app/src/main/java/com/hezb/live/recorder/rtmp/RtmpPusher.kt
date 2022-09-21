@@ -2,7 +2,7 @@ package com.hezb.live.recorder.rtmp
 
 import android.media.MediaCodec
 import android.media.MediaFormat
-import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfig
 import com.hezb.live.recorder.rtmp.packet.FlvData
 import com.hezb.live.recorder.rtmp.packet.FlvHelper
 import com.hezb.live.recorder.rtmp.packet.FlvMetaData

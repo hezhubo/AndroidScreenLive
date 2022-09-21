@@ -1,7 +1,7 @@
 package com.hezb.live.recorder.core
 
 import android.os.SystemClock
-import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfig
 
 /**
  * Project Name: AndroidScreenLive

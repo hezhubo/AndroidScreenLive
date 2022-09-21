@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.*
@@ -19,7 +20,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfigHelper
+import java.text.SimpleDateFormat
+import java.util.*
 
 
 /**
@@ -37,7 +41,7 @@ class MainActivity : AppCompatActivity() {
 
     private var rtmpUrl = "rtmp://192.168.3.101/live/livestream"
 
-    private var recorderConfig = RecorderConfig()
+    private lateinit var recorderConfig: RecorderConfig
 
     private var recorderAidlInterface: RecorderAidlInterface? = null
     private val serviceConnection = object : ServiceConnection {
@@ -45,10 +49,11 @@ class MainActivity : AppCompatActivity() {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             recorderAidlInterface = RecorderAidlInterface.Stub.asInterface(service)
             recorderAidlInterface?.setCallback(object : RecorderCallback.Stub() {
+                val format = SimpleDateFormat("HH:mm:ss")
                 override fun onResult(msg: String?) {
                     if (isBindService) {
                         runOnUiThread {
-                            recorderMsgState.value += "\n$msg"
+                            recorderMsgState.value += "\n${format.format(Date())} $msg"
                         }
                     }
                 }
@@ -73,6 +78,8 @@ class MainActivity : AppCompatActivity() {
             serviceConnection,
             Context.BIND_AUTO_CREATE
         )
+
+        recorderConfig = RecorderConfigHelper.readConfig(this)
 
         setContent {
             Column(modifier = Modifier.padding(horizontal = 5.dp)) {
@@ -131,25 +138,38 @@ class MainActivity : AppCompatActivity() {
 
                 Spacer(modifier = Modifier.height(5.dp))
 
+                val rtmpUrlState: MutableState<String> = remember { mutableStateOf(rtmpUrl) }
                 TextField(
-                    value = rtmpUrl,
+                    value = rtmpUrlState.value,
                     onValueChange = {
-                        rtmpUrl = it
+                        rtmpUrlState.value = it
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(text = "填入推流地址")
                     },
                     singleLine = true
                 )
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(modifier = Modifier.weight(1f, true), onClick = {
+                        if (rtmpUrlState.value.isEmpty()) {
+                            Toast.makeText(this@MainActivity, "请填入推流地址", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
                         if (isBindService) {
-                            recorderAidlInterface?.startLive(recorderConfig, rtmpUrl)
+                            recorderAidlInterface?.startLive(recorderConfig, rtmpUrlState.value)
                         }
                     }) {
                         Text(text = "开始推流")
                     }
                     Spacer(modifier = Modifier.width(5.dp))
                     Button(modifier = Modifier.weight(1f, true), onClick = {
+                        if (rtmpUrlState.value.isEmpty()) {
+                            Toast.makeText(this@MainActivity, "请填入推流地址", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
                         if (isBindService) {
-                            recorderAidlInterface?.startLiveRecord(recorderConfig, rtmpUrl)
+                            recorderAidlInterface?.startLiveRecord(recorderConfig, rtmpUrlState.value)
                         }
                     }) {
                         Text(text = "边推边录")

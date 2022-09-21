@@ -12,7 +12,7 @@ import android.os.Build
 import android.os.Environment
 import android.os.IBinder
 import com.hezb.live.recorder.RecorderClient
-import com.hezb.live.recorder.RecorderConfig
+import com.hezb.live.recorder.config.RecorderConfig
 import java.io.File
 import java.text.SimpleDateFormat
 

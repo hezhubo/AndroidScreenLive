@@ -12,7 +12,7 @@ import android.os.Parcelable
  * @author  hezhubo
  * @date    2022年07月12日 23:31
  */
-class Size(val width: Int, val height: Int) : Parcelable {
+class Size(var width: Int, var height: Int) : Parcelable {
 
     constructor(parcel: Parcel) : this(parcel.readInt(), parcel.readInt())
 
