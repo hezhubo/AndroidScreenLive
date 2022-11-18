@@ -276,7 +276,7 @@ class RecorderConfigActivity : AppCompatActivity() {
             val videoBitrateState: MutableState<Int> = remember { mutableStateOf(recorderConfig.videoBitrate) }
             val videoBitrateModeState: MutableState<Int> = remember { mutableStateOf(recorderConfig.videoBitrateMode) }
             val frameRateState: MutableState<Int> = remember { mutableStateOf(recorderConfig.videoFrameRate) }
-            val frameIntervalState: MutableState<Int> = remember { mutableStateOf(recorderConfig.videoFrameInterval) }
+            val iframeIntervalState: MutableState<Int> = remember { mutableStateOf(recorderConfig.videoIFrameInterval) }
             var videoProfile: MediaCodecInfo.CodecProfileLevel? = null
             if (recorderConfig.videoCodecProfile > 0 && recorderConfig.videoCodecProfileLevel > 0) {
                 videoCodecCapabilities?.profileLevels?.forEach {
@@ -408,14 +408,14 @@ class RecorderConfigActivity : AppCompatActivity() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "关键帧间隔(单位：秒)：")
                     TextField(
-                        value = frameIntervalState.value.toString(),
+                        value = iframeIntervalState.value.toString(),
                         onValueChange = {
                             try {
                                 val frameInterval = it.toInt()
                                 if (frameInterval <= 0) {
                                     throw IllegalArgumentException()
                                 }
-                                frameIntervalState.value = frameInterval
+                                iframeIntervalState.value = frameInterval
                             } catch (e: Exception) {
                                 showToast("无效关键帧间隔！")
                             }
@@ -601,7 +601,7 @@ class RecorderConfigActivity : AppCompatActivity() {
                         recorderConfig.videoCodecName = videoEncoderSelectedState.value.name
                         recorderConfig.videoBitrate = videoBitrateState.value
                         recorderConfig.videoFrameRate = frameRateState.value
-                        recorderConfig.videoFrameInterval = frameIntervalState.value
+                        recorderConfig.videoIFrameInterval = iframeIntervalState.value
                         // 校验profile是否支持
                         videoProfileSelectedState.value?.let { targetProfileLevel ->
                             var hasProfile = false

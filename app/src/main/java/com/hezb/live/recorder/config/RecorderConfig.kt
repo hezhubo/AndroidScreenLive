@@ -27,7 +27,7 @@ class RecorderConfig() : Parcelable {
     /** 视频帧率 */
     var videoFrameRate = RecorderConfigHelper.DEFAULT_VIDEO_FRAME_RATE
     /** 视频关键帧间隔 */
-    var videoFrameInterval = RecorderConfigHelper.DEFAULT_VIDEO_FRAME_INTERVAL
+    var videoIFrameInterval = RecorderConfigHelper.DEFAULT_VIDEO_I_FRAME_INTERVAL
     /** 视频编码器名称（空则使用默认类型编码器） */
     var videoCodecName: String? = null
     /** 视频编码器对应支持的配置 profile */
@@ -48,7 +48,7 @@ class RecorderConfig() : Parcelable {
     /** 音频采样率 */
     var audioSampleRate = RecorderConfigHelper.DEFAULT_AUDIO_SAMPLE_RATE
     /** 声道数量 */
-    var audioChannelCount = RecorderConfigHelper.DEFAULT_AUDIO_CHANNEL_STEREO
+    var audioChannelCount = RecorderConfigHelper.DEFAULT_AUDIO_CHANNEL_COUNT
     /** 音频编码器名称（空则使用默认类型编码器） */
     var audioCodecName: String? = null
     /** 音频编码器对应支持的配置 aac-profile */
@@ -69,7 +69,7 @@ class RecorderConfig() : Parcelable {
                 "bitrate = $videoBitrate,\n\t" +
                 "bitrate mode = $videoBitrateMode,\n\t" +
                 "frame rate = $videoFrameRate,\n\t" +
-                "frame interval = $videoFrameInterval,\n\t" +
+                "I frame interval = $videoIFrameInterval,\n\t" +
                 "max b frame = $videoMaxBFrames,\n\t" +
                 "encoder = $videoCodecName,\n\t" +
                 "profile = $videoCodecProfile,\n\t" +
@@ -88,7 +88,7 @@ class RecorderConfig() : Parcelable {
             ?: Size(RecorderConfigHelper.DEFAULT_VIDEO_WIDTH, RecorderConfigHelper.DEFAULT_VIDEO_HEIGHT)
         videoBitrate = parcel.readInt()
         videoFrameRate = parcel.readInt()
-        videoFrameInterval = parcel.readInt()
+        videoIFrameInterval = parcel.readInt()
         videoCodecName = parcel.readString()
         videoCodecProfile = parcel.readInt()
         videoCodecProfileLevel = parcel.readInt()
@@ -108,7 +108,7 @@ class RecorderConfig() : Parcelable {
         parcel.writeParcelable(videoSize, flags)
         parcel.writeInt(videoBitrate)
         parcel.writeInt(videoFrameRate)
-        parcel.writeInt(videoFrameInterval)
+        parcel.writeInt(videoIFrameInterval)
         parcel.writeString(videoCodecName)
         parcel.writeInt(videoCodecProfile)
         parcel.writeInt(videoCodecProfileLevel)

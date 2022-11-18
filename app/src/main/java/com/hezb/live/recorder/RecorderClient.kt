@@ -224,6 +224,7 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
         }
         if (mRtmpPusher == null) {
             mRtmpPusher = RtmpPusher().also { rtmpPusher ->
+                rtmpPusher.onWriteErrorCallback = this
                 mRecorderConfig?.let {
                     rtmpPusher.init(it)
                 }

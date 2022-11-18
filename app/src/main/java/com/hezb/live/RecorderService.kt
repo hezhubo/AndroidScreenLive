@@ -75,6 +75,10 @@ class RecorderService : Service(), RecorderClient.OnStateChangeCallback {
         return recorderBinder
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        return START_NOT_STICKY
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         stopForeground(true)

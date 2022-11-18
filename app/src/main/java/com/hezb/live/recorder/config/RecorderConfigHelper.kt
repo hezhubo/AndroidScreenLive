@@ -20,9 +20,9 @@ object RecorderConfigHelper {
     const val DEFAULT_VIDEO_HEIGHT = 540
     const val DEFAULT_VIDEO_BITRATE = 5625 * 1000
     const val DEFAULT_VIDEO_FRAME_RATE = 25
-    const val DEFAULT_VIDEO_FRAME_INTERVAL = 1
+    const val DEFAULT_VIDEO_I_FRAME_INTERVAL = 2
 
-    const val DEFAULT_AUDIO_CHANNEL_STEREO = 1 // 声道数量
+    const val DEFAULT_AUDIO_CHANNEL_COUNT = 1 // 声道数量
     const val DEFAULT_AUDIO_BITRATE = 128000 // 音频码率 128kbps
     const val DEFAULT_AUDIO_SAMPLE_RATE = 44100  // 音频采样率 44.1kHz
 
@@ -60,7 +60,7 @@ object RecorderConfigHelper {
             putInt("videoWidth", config.videoSize.width)
             putInt("videoHeight", config.videoSize.height)
             putInt("videoBitrate", config.videoBitrate)
-            putInt("videoFrameInterval", config.videoFrameInterval)
+            putInt("videoIFrameInterval", config.videoIFrameInterval)
             putString("videoCodecName", config.videoCodecName)
             putInt("videoCodecProfile", config.videoCodecProfile)
             putInt("videoCodecProfileLevel", config.videoCodecProfileLevel)
@@ -89,7 +89,7 @@ object RecorderConfigHelper {
             config.videoSize.width = getInt("videoWidth", config.videoSize.width)
             config.videoSize.height = getInt("videoHeight", config.videoSize.height)
             config.videoBitrate = getInt("videoBitrate", config.videoBitrate)
-            config.videoFrameInterval = getInt("videoFrameInterval", config.videoFrameInterval)
+            config.videoIFrameInterval = getInt("videoIFrameInterval", config.videoIFrameInterval)
             config.videoCodecName = getString("videoCodecName", config.videoCodecName)
             config.videoCodecProfile = getInt("videoCodecProfile", config.videoCodecProfile)
             config.videoCodecProfileLevel = getInt("videoCodecProfileLevel", config.videoCodecProfileLevel)

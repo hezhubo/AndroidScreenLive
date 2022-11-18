@@ -88,7 +88,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
             setInteger(MediaFormat.KEY_FRAME_RATE, config.videoFrameRate)
             setInteger(MediaFormat.KEY_CAPTURE_RATE, config.videoFrameRate)
             setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / config.videoFrameRate)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, config.videoFrameInterval)
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, config.videoIFrameInterval)
             if (config.videoCodecProfile != 0 && config.videoCodecProfileLevel != 0) {
                 setInteger(MediaFormat.KEY_PROFILE, config.videoCodecProfile)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
