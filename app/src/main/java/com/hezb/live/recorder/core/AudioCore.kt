@@ -9,6 +9,7 @@ import com.hezb.live.recorder.config.RecorderConfig
 import com.hezb.live.recorder.config.RecorderConfigHelper
 import com.hezb.live.recorder.filter.audio.BaseAudioFilter
 import com.hezb.live.recorder.model.AudioBuffer
+import com.hezb.live.recorder.util.AudioUtil
 import com.hezb.live.recorder.util.LogUtil
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
@@ -60,6 +61,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
             audioChannel,
             AudioFormat.ENCODING_PCM_16BIT
         )
+        val bufferSizeInBytes = minBufferSize * 2 // 录制16位PCM数据，保证byte缓存是双字节
 
         if (!createAudioCodec(config)) {
             return ErrorCode.AUDIO_FORMAT_ERROR
@@ -73,7 +75,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                     config.audioSampleRate,
                     audioChannel,
                     AudioFormat.ENCODING_PCM_16BIT,
-                    minBufferSize * 2
+                    bufferSizeInBytes
                 )
             } catch (e: Exception) {
                 LogUtil.e(msg = "can't create audio recorder!", tr = e)
@@ -101,7 +103,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                             .setChannelMask(audioChannel)
                             .build()
                     )
-                    .setBufferSizeInBytes(minBufferSize * 2)
+                    .setBufferSizeInBytes(bufferSizeInBytes)
                     .setAudioPlaybackCaptureConfig(apccBuilder.build())
                 mPlaybackAudioRecord = try {
                     audioRecorderBuilder.build()
@@ -320,8 +322,8 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
             }
         }
 
-        private val DEF_MAX = 32767
-        private val DEF_MIN = -32768
+        private val DEF_MAX = Short.MAX_VALUE.toInt()
+        private val DEF_MIN = Short.MIN_VALUE.toInt()
         private val pbVolumeScale = 0.7f // 系统播放声音衰减因子
 
         /**
@@ -350,21 +352,19 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
             }
             var f = 1.0 // 衰减因子
             var ioutput: Int
-            var temp = 0
-            var temp2 = 0
-            val realSize = Math.max(audioBuffer.size, pbAudioBuffer.size)
-            for (i in 0 until realSize) {
-                val micByte = if (audioBuffer.size > i) {
-                    audioBuffer.byteArray[i]
+            val realSize = audioBuffer.size.coerceAtLeast(pbAudioBuffer.size)
+            for (i in 0 until realSize step 2) {
+                val micShort = if (audioBuffer.size > i + 1) {
+                    AudioUtil.convertPcm16BitByteToShort(audioBuffer.byteArray, i)
                 } else {
                     0
                 }
-                val pbByte = if (pbAudioBuffer.size > i) {
-                    (pbAudioBuffer.byteArray[i] * pbVolumeScale).toInt()
+                val pbShort = if (pbAudioBuffer.size > i + 1) {
+                    (AudioUtil.convertPcm16BitByteToShort(pbAudioBuffer.byteArray, i) * pbVolumeScale).toInt()
                 } else {
                     0
                 }
-                val iT = micByte + pbByte
+                val iT = micShort + pbShort
                 ioutput = (iT * f).toInt()
                 if (ioutput > DEF_MAX) {
                     f = DEF_MAX / ioutput.toDouble()
@@ -376,13 +376,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                 if (f < 1) {
                     f += (1 - f) / 32
                 }
-                audioBuffer.byteArray[i] = ioutput.toByte()
-                if (ioutput == 0) {
-                    temp++
-                    if (micByte == 0.toByte() && pbByte == 0) {
-                        temp2++
-                    }
-                }
+                AudioUtil.convertPcm16BitShortToByte(ioutput.toShort(), audioBuffer.byteArray, i)
             }
             audioBuffer.size = realSize
         }

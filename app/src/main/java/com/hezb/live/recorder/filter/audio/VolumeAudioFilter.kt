@@ -27,7 +27,7 @@ class VolumeAudioFilter : BaseAudioFilter() {
         var origin: Short
         var i = 0
         while (i < size) {
-            origin = (originBuffer[i + 1].toInt() shl 8 or originBuffer[i].toInt() and 0xff).toShort()
+            origin = (originBuffer[i + 1].toInt() shl 8 or (originBuffer[i].toInt() and 0xff)).toShort()
             origin = (origin * volumeScale).toInt().toShort()
             originBuffer[i + 1] = (origin.toInt() shr 8).toByte()
             originBuffer[i] = origin.toByte()
