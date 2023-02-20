@@ -153,6 +153,11 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                         return@setOnFrameAvailableListener
                     }
                 }
+                try {
+                    it.updateTexImage() // 释放缓冲区
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
 
@@ -174,11 +179,14 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
         }
 
         // 启动渲染handler线程
-        mRenderHandlerThread = HandlerThread("VideoRenderHandlerThread").apply {
-            start()
-            mRenderHandler = VideoRenderHandler(looper).also {
-                it.sendEmptyMessage(MSG_WHAT_INIT)
+        mRenderHandlerThread = object : HandlerThread("VideoRenderHandlerThread") {
+            override fun onLooperPrepared() {
+                mRenderHandler = VideoRenderHandler(looper).also {
+                    it.sendEmptyMessage(MSG_WHAT_INIT)
+                }
             }
+        }.apply {
+            start()
         }
         // 启动编码输出线程
         mEncoderOutputThread = VideoEncoderOutputThread(collector).apply { start() }
@@ -240,8 +248,11 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
         try {
             mVirtualDisplay?.release()
             mVirtualDisplay = null
-            mScreenSurfaceTexture?.release()
-            mScreenSurfaceTexture = null
+            mScreenSurfaceTexture?.let {
+                mScreenSurfaceTexture = null
+                it.setOnFrameAvailableListener(null)
+                it.release()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

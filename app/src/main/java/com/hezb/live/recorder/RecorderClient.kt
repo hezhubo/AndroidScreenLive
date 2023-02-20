@@ -260,14 +260,14 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
     }
 
     fun stop(autoRelease: Boolean = false) {
-        if (currentState == STATE_STOPPING) {
+        if (currentState >= STATE_STOPPING) {
             return
         }
         if (currentState != STATE_RUNNING) {
             onStateChangeCallback?.onStopFailure(ErrorCode.CLIENT_STATE_ERROR)
             return
         }
-        isRecording = false
+
         currentState = STATE_STOPPING
 
         MainScope().launch {
@@ -284,11 +284,13 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
 
             var error = ErrorCode.NO_ERROR
             mMediaMuxer?.let {
-                try {
-                    it.stop()
-                } catch (e: Exception) {
-                    LogUtil.e(msg = "media muxer stop error!", tr = e)
-                    error = ErrorCode.MEDIA_MUXER_STOP_ERROR
+                if (isRecording) {
+                    try {
+                        it.stop()
+                    } catch (e: Exception) {
+                        LogUtil.e(msg = "media muxer stop error!", tr = e)
+                        error = ErrorCode.MEDIA_MUXER_STOP_ERROR
+                    }
                 }
                 try {
                     it.release()
@@ -297,6 +299,7 @@ class RecorderClient : BaseCore.OnErrorCallback, RtmpPusher.OnWriteErrorCallback
                     error = ErrorCode.MEDIA_MUXER_RELEASE_ERROR
                 }
             }
+            isRecording = false
             val outputSuccess = error == ErrorCode.NO_ERROR// 标记视频混合输出成功
             videoTrackIndex = -1
             audioTrackIndex = -1
