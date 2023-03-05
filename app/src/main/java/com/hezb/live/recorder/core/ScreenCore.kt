@@ -60,6 +60,9 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
     /** 是否正在录制 */
     @Volatile
     private var isRecording = false
+    /** 是否有可渲染帧 */
+    @Volatile
+    private var isFrameAvailable = false
 
     override fun prepare(config: RecorderConfig): Int {
         videoCodecName = config.videoCodecName
@@ -153,10 +156,8 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                         return@setOnFrameAvailableListener
                     }
                 }
-                try {
-                    it.updateTexImage() // 释放缓冲区
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                if (screenTextureId != GlUtil.NO_TEXTURE) {
+                    isFrameAvailable = true
                 }
             }
         }
@@ -252,6 +253,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                 mScreenSurfaceTexture = null
                 it.setOnFrameAvailableListener(null)
                 it.release()
+                isFrameAvailable = false
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -350,6 +352,11 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                         source2dProgram = Texture2DProgram(fragmentShaderCode = Texture2DProgram.FRAGMENT_SHADER_SOURCE2D)
 
                         isRecording = true
+
+                        if (isFrameAvailable && !hasMessages(MSG_WHAT_ON_FRAME_AVAILABLE)) {
+                            sendEmptyMessage(MSG_WHAT_ON_FRAME_AVAILABLE)
+                        }
+
                     } catch (e: Exception) {
                         e.printStackTrace()
                         mOnErrorCallback?.onError("video render handler init error! ${e.message}")
@@ -467,6 +474,7 @@ class ScreenCore(private var mediaProjection: MediaProjection?) : BaseCore() {
                             it.releaseSurface(eglSurface)
                             eglSurface = EGL14.EGL_NO_SURFACE
                             it.release()
+                            screenTextureId = GlUtil.NO_TEXTURE
                         }
                         eglCore = null
                     } catch (e: Exception) {
