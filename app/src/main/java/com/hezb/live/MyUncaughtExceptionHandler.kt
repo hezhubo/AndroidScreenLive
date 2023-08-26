@@ -1,14 +1,20 @@
 package com.hezb.live
 
+import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
-import android.os.Environment
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import com.hezb.live.recorder.config.RecorderConfigHelper
-import java.io.*
+import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileReader
+import java.io.FileWriter
+import java.io.PrintWriter
 import java.text.SimpleDateFormat
+import java.util.Arrays
 import java.util.regex.Pattern
 
 /**
@@ -42,11 +48,17 @@ class MyUncaughtExceptionHandler : Thread.UncaughtExceptionHandler {
                 val printWriter = PrintWriter(BufferedWriter(fileWriter))
                 printWriter.println("device: ${Build.MANUFACTURER} ${Build.MODEL}")
                 printWriter.println("version: ${Build.VERSION.RELEASE}")
-                printWriter.println("cpu abi: ${Build.CPU_ABI}")
+                printWriter.println("cpu abi: ${Arrays.toString(Build.SUPPORTED_ABIS)}")
                 val windowManager = IApplication.getInstance().getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                val metrics = DisplayMetrics()
-                windowManager.defaultDisplay.getRealMetrics(metrics)
-                printWriter.println("resolution: ${metrics.widthPixels}x${metrics.heightPixels}, dpi: ${metrics.densityDpi}")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val bounds = windowManager.maximumWindowMetrics.bounds
+                    val dip = IApplication.getInstance().resources.configuration.densityDpi
+                    printWriter.println("resolution: ${bounds.right - bounds.left}x${bounds.bottom - bounds.top}, dpi: $dip")
+                } else {
+                    val metrics = DisplayMetrics()
+                    windowManager.defaultDisplay.getRealMetrics(metrics)
+                    printWriter.println("resolution: ${metrics.widthPixels}x${metrics.heightPixels}, dpi: ${metrics.densityDpi}")
+                }
                 printWriter.println("memory: ${getAvailMemory(IApplication.getInstance())}/${getTotalMemory()}")
                 printWriter.println(RecorderConfigHelper.readConfig(IApplication.getInstance()))
                 printWriter.println("thread: ${t.name}")
@@ -56,12 +68,16 @@ class MyUncaughtExceptionHandler : Thread.UncaughtExceptionHandler {
                     cause = e.cause
                 } while (cause != null)
                 printWriter.close()
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
+    @SuppressLint("SimpleDateFormat")
     private fun createFilePath(): String? {
-        val outputDir = Environment.getExternalStorageDirectory().path + "/HezbRecorder/"
+        // /storage/emulated/0/Android/data/$packageName/files/crash/
+        val outputDir = IApplication.getInstance().getExternalFilesDir(null)?.absolutePath + "/crash/"
         val dirFile = File(outputDir)
         if (!dirFile.exists()) {
             if (!dirFile.mkdirs()) {
@@ -83,14 +99,16 @@ class MyUncaughtExceptionHandler : Thread.UncaughtExceptionHandler {
                         val pattern = Pattern.compile("[0-9]+")
                         val matcher = pattern.matcher(line)
                         if (matcher.find()) {
-                            line = matcher.group(0)
+                            line = matcher.group(0)!!
                             totalMemory = line.toLong()
                             break
                         }
                     }
                 }
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         return totalMemory
     }
 

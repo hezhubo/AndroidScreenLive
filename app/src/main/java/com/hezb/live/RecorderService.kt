@@ -61,7 +61,7 @@ class RecorderService : Service(), RecorderClient.OnStateChangeCallback {
         val intent = packageManager.getLaunchIntentForPackage(packageName)
             ?.setPackage(null)
             ?.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         builder.setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("录制服务")
             .setShowWhen(false)
@@ -91,14 +91,28 @@ class RecorderService : Service(), RecorderClient.OnStateChangeCallback {
     }
 
     private fun createVideoPath(): String? {
-        val outputDir = Environment.getExternalStorageDirectory().path + "/HezbRecorder/"
-        val dirFile = File(outputDir)
-        if (!dirFile.exists()) {
-            if (!dirFile.mkdirs()) {
+        val outputDir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // dir : /storage/emulated/0/Android/data/$packageName/files/Recorder
+            File(getExternalFilesDir(null), "Recorder")
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // dir : /storage/emulated/0/Pictures/Screenshots
+            File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                Environment.DIRECTORY_SCREENSHOTS
+            )
+        } else {
+            // dir : /storage/emulated/0/Movies
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        }
+        if (!outputDir.exists()) {
+            if (!outputDir.mkdirs()) {
                 return null
             }
         }
-        return "${outputDir}${SimpleDateFormat("yyyyMMdd_HHmmss").format(System.currentTimeMillis())}.mp4"
+        return File(
+            outputDir,
+            "${SimpleDateFormat("yyyyMMdd_HHmmss").format(System.currentTimeMillis())}.mp4"
+        ).absolutePath
     }
 
     private inner class RecorderBinder : RecorderAidlInterface.Stub() {

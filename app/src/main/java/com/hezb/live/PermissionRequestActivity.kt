@@ -39,6 +39,7 @@ class PermissionRequestActivity : Activity() {
             hasProjection: Boolean = false
         ) {
             val intent = Intent(context, PermissionRequestActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             intent.putExtra("flag", flag)
             intent.putExtra("recordAudio", recordAudio)
             intent.putExtra("recordSave", recordSave)
@@ -106,12 +107,15 @@ class PermissionRequestActivity : Activity() {
                 }
             }
             if (recordSave) {
-                val canRecordSave = ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-                if (!canRecordSave) {
-                    permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    val permission = Manifest.permission.WRITE_EXTERNAL_STORAGE;
+                    val canRecordSave = ContextCompat.checkSelfPermission(
+                        this,
+                        permission
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (!canRecordSave) {
+                        permissions.add(permission)
+                    }
                 }
             }
             if (permissions.isNotEmpty()) {
