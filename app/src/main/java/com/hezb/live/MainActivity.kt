@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var recorderMsgState: MutableState<String>
 
-    private var rtmpUrl = "rtmp://192.168.3.101/live/livestream"
+    private var rtmpUrl = "rtmp://192.168.10.5/live/livestream"
 
     private lateinit var recorderConfig: RecorderConfig
 

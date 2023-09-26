@@ -20,18 +20,19 @@ class VolumeAudioFilter : BaseAudioFilter() {
         volumeScale = scale
     }
 
-    override fun onFilter(originBuffer: ByteArray, targetBuffer: ByteArray, size: Int) {
-        if (size < 2) {
-            return
+    override fun onFilter(originBuffer: ByteArray, originBufferSize: Int, targetBuffer: ByteArray) : Int {
+        if (originBufferSize < 2) {
+            return 0
         }
         var origin: Short
         var i = 0
-        while (i < size) {
+        while (i < originBufferSize) {
             origin = (originBuffer[i + 1].toInt() shl 8 or (originBuffer[i].toInt() and 0xff)).toShort()
             origin = (origin * volumeScale).toInt().toShort()
             originBuffer[i + 1] = (origin.toInt() shr 8).toByte()
             originBuffer[i] = origin.toByte()
             i += 2
         }
+        return originBufferSize
     }
 }

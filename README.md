@@ -9,9 +9,7 @@
 - [x] 支持动态修改视频码率
 - [x] 支持视频OpenGL滤镜
 - [x] 支持音频滤镜
-
-TODO
-- [ ] 基于[SoundTouch](https://www.surina.net/soundtouch/)实现实时变声
+- [x] 基于[SoundTouch](https://www.surina.net/soundtouch/)实现实时变声
 
 ----
 参考项目：

@@ -5,6 +5,7 @@ import android.media.*
 import android.media.projection.MediaProjection
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import com.hezb.live.recorder.config.RecorderConfig
 import com.hezb.live.recorder.config.RecorderConfigHelper
 import com.hezb.live.recorder.filter.audio.BaseAudioFilter
@@ -47,6 +48,8 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
     private val pcmBufferSize = 2048 // PCM数据缓存大小 2k
     private val mineType = MediaFormat.MIMETYPE_AUDIO_AAC // 编码格式
     private var audioCodecName: String? = null
+    private var audioSampleRate: Int = RecorderConfigHelper.DEFAULT_AUDIO_SAMPLE_RATE
+    private var audioChannelCount: Int = RecorderConfigHelper.DEFAULT_AUDIO_CHANNEL_COUNT
 
     @SuppressLint("MissingPermission")
     override fun prepare(config: RecorderConfig): Int {
@@ -124,6 +127,8 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
     }
 
     private fun createAudioCodec(config: RecorderConfig): Boolean {
+        audioSampleRate = config.audioSampleRate
+        audioChannelCount = config.audioChannelCount
         mEncodeFormat = MediaFormat().apply {
             setString(MediaFormat.KEY_MIME, mineType)
             if (config.audioCodecAACProfile != 0) {
@@ -388,6 +393,8 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
     private inner class AudioEncodeInputThread: Thread() {
         private var isRunning = true
 
+        private var mInnerAudioFilter: BaseAudioFilter? = null
+
         fun quit() {
             isRunning = false
             pcmAudioBufferQueue.put(AudioBuffer(ByteArray(0))) // 用于唤醒阻塞线程
@@ -399,17 +406,25 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                 if (!isRunning) {
                     break
                 }
-                val isFilterLocked = lockAudioFilter()
-                if (isFilterLocked) {
+
+                if (lockAudioFilter()) {
+                    if (mAudioFilter != mInnerAudioFilter) {
+                        mInnerAudioFilter?.onDestroy()
+                        mInnerAudioFilter = mAudioFilter
+                        mInnerAudioFilter?.init(audioSampleRate, audioChannelCount)
+                    }
                     mAudioFilter?.let {
                         val targetAudioBuffer = getAudioBuffer()
-                        it.onFilter(audioBuffer.byteArray, targetAudioBuffer.byteArray, audioBuffer.size)
-                        targetAudioBuffer.size = audioBuffer.size
+                        val targetSize = it.onFilter(audioBuffer.byteArray, audioBuffer.size, targetAudioBuffer.byteArray)
+                        targetAudioBuffer.size = targetSize
                         val tempAudioBuffer = audioBuffer
                         audioBuffer = targetAudioBuffer
                         releaseAudioBuffer(tempAudioBuffer)
                     }
                     unlockAudioFilter()
+                    if (audioBuffer.size == 0) {
+                        continue
+                    }
                 }
 
                 val pts = getPresentationTimeUs() // 先计算时间戳，减少dequeueInputBuffer耗时误差
@@ -442,6 +457,12 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                 }
 
                 releaseAudioBuffer(audioBuffer)
+            }
+            // 销毁滤镜
+            mInnerAudioFilter?.let { filter ->
+                mFilterLock.lock()
+                filter.onDestroy()
+                mFilterLock.unlock()
             }
         }
 
@@ -520,6 +541,7 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                             else -> {
                                 if (outputBufferInfo.flags != MediaCodec.BUFFER_FLAG_CODEC_CONFIG && outputBufferInfo.size != 0) {
                                     try {
+                                        Log.i("hezb", "------outputBufferInfo-pts----------  ${outputBufferInfo.presentationTimeUs}")
                                         val encodedData = encoder.getOutputBuffer(eobIndex) ?: return@let
                                         encodedData.position(outputBufferInfo.offset)
                                         encodedData.limit(outputBufferInfo.offset + outputBufferInfo.size)

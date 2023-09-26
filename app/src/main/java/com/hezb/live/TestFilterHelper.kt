@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.TextView
 import com.hezb.live.recorder.RecorderClient
+import com.hezb.live.recorder.filter.audio.SoundTouchAudioFilter
 import com.hezb.live.recorder.filter.audio.VolumeAudioFilter
 import com.hezb.live.recorder.filter.video.BaseVideoFilter
 import com.hezb.live.recorder.filter.video.IconVideoFilter
@@ -34,7 +35,10 @@ object TestFilterHelper {
     fun setVolumeAudioFilter(client: RecorderClient) {
         i++
         if (i % 2 == 1) {
-            client.setAudioFilter(VolumeAudioFilter().apply { setVolumeScale(0f) })
+//            client.setAudioFilter(VolumeAudioFilter().apply { setVolumeScale(0f) })
+            // TODO test
+            client.setAudioFilter(SoundTouchAudioFilter(SoundTouchAudioFilter.VoiceType.FUNNY))
+
         } else {
             client.setAudioFilter(null)
         }
