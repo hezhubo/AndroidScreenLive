@@ -17,7 +17,7 @@ Java_com_hezb_lib_soundtouch_SoundTouch_getVersion(JNIEnv *env, jclass clazz) {
 
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_hezb_lib_soundtouch_SoundTouch_newInstance(JNIEnv *env, jclass clazz) {
+Java_com_hezb_lib_soundtouch_SoundTouch_newInstance(JNIEnv *env, jobject thiz) {
     return (jlong)(new SoundTouch());
 }
 

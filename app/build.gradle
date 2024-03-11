@@ -16,11 +16,6 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        externalNativeBuild {
-            ndkBuild {
-                arguments "NDK_APPLICATION_MK:=src/main/cpp/Application.mk"
-            }
-        }
     }
 
     buildTypes {
@@ -47,11 +42,6 @@ android {
         jvmTarget = '1.8'
     }
 
-    externalNativeBuild {
-        ndkBuild {
-            path file('src/main/cpp/Android.mk')
-        }
-    }
 }
 
 dependencies {
@@ -70,6 +60,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4' // 协程库
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
 
+    implementation project(path: ':lib-rtmp')
     implementation project(path: ':lib-soundtouch')
 
 }

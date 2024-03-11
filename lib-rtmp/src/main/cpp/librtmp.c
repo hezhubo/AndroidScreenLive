@@ -1,16 +1,28 @@
 #include <malloc.h>
 #include "librtmp.h"
 #include "librtmp/rtmp.h"
-#include "log.h"
+#include <android/log.h>
+#include <string.h>
 
- JNIEXPORT jlong JNICALL Java_com_hezb_live_recorder_rtmp_RtmpClient_open
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "RTMP", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "RTMP", __VA_ARGS__)
+
+ JNIEXPORT jstring JNICALL Java_com_hezb_lib_rtmp_RtmpClient_getVersion
+ (JNIEnv * env, jclass clazz) {
+    RTMP_LibVersion();
+    char ver[8];
+    sprintf(ver, "%x", RTMP_LibVersion());
+    return (*env)->NewStringUTF(env, ver);
+ }
+
+ JNIEXPORT jlong JNICALL Java_com_hezb_lib_rtmp_RtmpClient_open
  (JNIEnv * env, jobject thiz, jstring url_, jboolean isPublishMode) {
  	const char *url = (*env)->GetStringUTFChars(env, url_, 0);
- 	// LOGD("RTMP_OPENING:%s",url);
+ 	LOGD("RTMP_OPENING : %s", url);
  	RTMP* rtmp = RTMP_Alloc();
  	if (rtmp == NULL) {
- 		LOGD("RTMP_Alloc=NULL");
- 		return NULL;
+ 		LOGE("RTMP_Alloc=NULL");
+ 		return 0;
  	}
 
  	RTMP_Init(rtmp);
@@ -19,8 +31,8 @@
  	if (!ret) {
  		RTMP_Free(rtmp);
  		rtmp=NULL;
- 		LOGD("RTMP_SetupURL=ret");
- 		return NULL;
+ 		LOGE("RTMP_SetupURL=%d", ret);
+ 		return 0;
  	}
  	if (isPublishMode) {
  		RTMP_EnableWrite(rtmp);
@@ -30,26 +42,24 @@
  	if (!ret) {
  		RTMP_Free(rtmp);
  		rtmp=NULL;
- 		LOGD("RTMP_Connect=ret");
- 		return NULL;
+ 		LOGD("RTMP_Connect=%d", ret);
+ 		return 0;
  	}
  	ret = RTMP_ConnectStream(rtmp, 0);
 
  	if (!ret) {
- 		ret = RTMP_ConnectStream(rtmp, 0);
  		RTMP_Close(rtmp);
  		RTMP_Free(rtmp);
  		rtmp=NULL;
- 		LOGD("RTMP_ConnectStream=ret");
- 		return NULL;
+ 		LOGD("RTMP_ConnectStream=%d", ret);
+ 		return 0;
  	}
  	(*env)->ReleaseStringUTFChars(env, url_, url);
- 	// LOGD("RTMP_OPENED");
- 	return rtmp;
+ 	LOGD("RTMP_OPENED");
+ 	return (jlong) rtmp;
  }
 
-
- JNIEXPORT jint JNICALL Java_com_hezb_live_recorder_rtmp_RtmpClient_read
+ JNIEXPORT jint JNICALL Java_com_hezb_lib_rtmp_RtmpClient_read
  (JNIEnv * env, jobject thiz, jlong rtmp, jbyteArray data_, jint offset, jint size) {
 
  	char* data = malloc(size*sizeof(char));
@@ -64,7 +74,7 @@
     return readCount;
 }
 
- JNIEXPORT jint JNICALL Java_com_hezb_live_recorder_rtmp_RtmpClient_write
+ JNIEXPORT jint JNICALL Java_com_hezb_lib_rtmp_RtmpClient_write
  (JNIEnv * env, jobject thiz, jlong rtmp, jbyteArray data, jint size, jint type, jint ts) {
  	// LOGD("start write");
  	jbyte *buffer = (*env)->GetByteArrayElements(env, data, NULL);
@@ -105,9 +115,8 @@
     return ret;
 }
 
- JNIEXPORT jint JNICALL Java_com_hezb_live_recorder_rtmp_RtmpClient_close
+ JNIEXPORT void JNICALL Java_com_hezb_lib_rtmp_RtmpClient_close
  (JNIEnv * env, jobject thiz, jlong rtmp) {
  	RTMP_Close((RTMP*)rtmp);
  	RTMP_Free((RTMP*)rtmp);
- 	return 0;
  }

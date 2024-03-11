@@ -541,7 +541,6 @@ class AudioCore(private var mediaProjection: MediaProjection? = null) : BaseCore
                             else -> {
                                 if (outputBufferInfo.flags != MediaCodec.BUFFER_FLAG_CODEC_CONFIG && outputBufferInfo.size != 0) {
                                     try {
-                                        Log.i("hezb", "------outputBufferInfo-pts----------  ${outputBufferInfo.presentationTimeUs}")
                                         val encodedData = encoder.getOutputBuffer(eobIndex) ?: return@let
                                         encodedData.position(outputBufferInfo.offset)
                                         encodedData.limit(outputBufferInfo.offset + outputBufferInfo.size)

@@ -19,7 +19,7 @@ public final class SoundTouch {
 
     public native static String getVersion();
 
-    private native static long newInstance();
+    private native long newInstance();
 
     private native void deleteInstance(long handle);
 

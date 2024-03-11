@@ -2,6 +2,7 @@ package com.hezb.live.recorder.rtmp
 
 import android.media.MediaCodec
 import android.media.MediaFormat
+import com.hezb.lib.rtmp.RtmpClient
 import com.hezb.live.recorder.config.RecorderConfig
 import com.hezb.live.recorder.rtmp.packet.FlvData
 import com.hezb.live.recorder.rtmp.packet.FlvHelper
@@ -35,8 +36,8 @@ class RtmpPusher {
 
     /** flv metadata */
     private var metaData: ByteArray? = null
-    /** 底层推流对象的指针 */
-    private var jniRtmpPointer: Long = 0
+    /** rtmp客户端 */
+    private var rtmpClient: RtmpClient? = null
 
     private var videoStartTimestamp: Long = 0
     private var audioStartTimestamp: Long = 0
@@ -45,6 +46,7 @@ class RtmpPusher {
 
     fun init(config: RecorderConfig) {
         metaData = FlvMetaData(config).getMetaData()
+        rtmpClient = RtmpClient()
     }
 
     /**
@@ -55,23 +57,21 @@ class RtmpPusher {
      * @return 是否成功
      */
     fun start(rtmpUrl: String): Boolean {
+        var connected = false;
         if (rtmpUrl.isNotEmpty()) {
             try {
-                // 底层返回rtmp的指针; jniRtmpPointer == 0 则创建失败
-                jniRtmpPointer = RtmpClient.open(rtmpUrl, true)
+                connected = rtmpClient?.connect(rtmpUrl, true) ?: false
             } catch (e: Throwable) {
-                jniRtmpPointer = 0
                 LogUtil.e(msg = "rtmp client open error!", tr = e)
             }
         }
-        if (jniRtmpPointer == 0L) {
+        if (!connected) {
             LogUtil.e(msg = "rtmp open native error!")
             return false
         }
         LogUtil.i(msg = "rtmp open url : $rtmpUrl")
         metaData?.let {
-            RtmpClient.write(
-                jniRtmpPointer,
+            rtmpClient!!.write(
                 it,
                 it.size,
                 FlvData.FLV_RTMP_PACKET_TYPE_INFO,
@@ -87,11 +87,10 @@ class RtmpPusher {
      * 会阻塞主线程，需要异步线程调用
      */
     fun stop() {
-        if (jniRtmpPointer != 0L) {
+        rtmpClient?.let {
             try {
-                val closeResult = RtmpClient.close(jniRtmpPointer)
-                LogUtil.i(msg = "rtmp client close result = $closeResult")
-                jniRtmpPointer = 0L
+                it.close()
+                LogUtil.i(msg = "rtmp client close!")
             } catch (e: Exception) {
                 LogUtil.e(msg = "rtmp client close error!", tr = e)
             }
@@ -162,7 +161,7 @@ class RtmpPusher {
         override fun run() {
             while (isRunning) {
                 val flvData = flvDataBlockingQueue.take() // 队列为空，阻塞
-                if (!isRunning || jniRtmpPointer == 0L) {
+                if (!isRunning || rtmpClient?.isConnected == true) {
                     break
                 }
                 if (flvData.flvTagType == FlvData.FLV_RTMP_PACKET_TYPE_VIDEO) {
@@ -176,10 +175,9 @@ class RtmpPusher {
                         continue // 丢包
                     }
                 }
-                var writeResult = 0
+                var writeSuccess = false
                 flvData.byteBuffer?.let {
-                    writeResult = RtmpClient.write(
-                        jniRtmpPointer,
+                    writeSuccess = rtmpClient!!.write(
                         it,
                         flvData.size,
                         flvData.flvTagType,
@@ -188,7 +186,7 @@ class RtmpPusher {
                     lruArrayPool.put(it)
                 }
                 flvData.recycle()
-                if (writeResult != 0) {
+                if (writeSuccess) {
                     errorTimes = 0
                 } else {
                     ++errorTimes
