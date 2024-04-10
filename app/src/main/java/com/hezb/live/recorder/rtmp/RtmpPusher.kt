@@ -161,7 +161,7 @@ class RtmpPusher {
         override fun run() {
             while (isRunning) {
                 val flvData = flvDataBlockingQueue.take() // 队列为空，阻塞
-                if (!isRunning || rtmpClient?.isConnected == true) {
+                if (!isRunning || rtmpClient?.isConnected != true) {
                     break
                 }
                 if (flvData.flvTagType == FlvData.FLV_RTMP_PACKET_TYPE_VIDEO) {
