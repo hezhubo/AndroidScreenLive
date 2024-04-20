@@ -11,13 +11,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.TextView
-import com.hezb.live.recorder.RecorderClient
-import com.hezb.live.recorder.filter.audio.SoundTouchAudioFilter
-import com.hezb.live.recorder.filter.audio.VolumeAudioFilter
-import com.hezb.live.recorder.filter.video.BaseVideoFilter
-import com.hezb.live.recorder.filter.video.IconVideoFilter
-import com.hezb.live.recorder.filter.video.VideoGroupFilter
-import com.hezb.live.recorder.filter.video.ViewVideoFilter
+import com.hezb.lib.live.LiveClient
+import com.hezb.lib.live.filter.audio.SoundTouchAudioFilter
+import com.hezb.lib.live.filter.video.BaseVideoFilter
+import com.hezb.lib.live.filter.video.IconVideoFilter
+import com.hezb.lib.live.filter.video.VideoGroupFilter
+import com.hezb.lib.live.filter.video.ViewVideoFilter
+import com.hezb.lib.live.model.Size
 
 /**
  * Project Name: AndroidScreenLive
@@ -32,7 +32,7 @@ object TestFilterHelper {
 
     private var i = 0
 
-    fun setVolumeAudioFilter(client: RecorderClient) {
+    fun setVolumeAudioFilter(client: LiveClient) {
         i++
         if (i % 2 == 1) {
 //            client.setAudioFilter(VolumeAudioFilter().apply { setVolumeScale(0f) })
@@ -46,7 +46,7 @@ object TestFilterHelper {
 
     private var j = 0
 
-    fun setVideoFilter(client: RecorderClient, context: Context) {
+    fun setVideoFilter(client: LiveClient, context: Context, videoSize: Size) {
         j++
         if (j % 2 == 0) {
             client.setVideoFilter(null)
@@ -59,7 +59,6 @@ object TestFilterHelper {
         // 横屏，获取屏幕尺寸
         val screenWidth = displayMetrics.heightPixels
         val screenHeight = displayMetrics.widthPixels
-        val videoSize = client.getVideoSize()
         val filterList = ArrayList<BaseVideoFilter>()
         filterList.add(
             IconVideoFilter(

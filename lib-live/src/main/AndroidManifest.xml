@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 前台服务权限，用于申请MediaProjection -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <application>
+
+        <!-- 透明页面，用于申请MediaProjection权限 -->
+        <activity
+            android:name=".mediaprojection.MediaProjectionRequireActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize|navigation"
+            android:launchMode="singleTop"
+            android:theme="@style/Live.Theme.Transparent.MediaProjectionRequireActivity" />
+
+        <!-- 前台服务，用于申请MediaProjection -->
+        <service
+            android:name=".mediaprojection.MediaProjectionRequireService"
+            android:foregroundServiceType="mediaProjection" />
+
+    </application>
+
+</manifest>

@@ -1,7 +1,7 @@
 package com.hezb.live.recorder.config
 
 import android.content.Context
-import android.os.Build
+import com.hezb.lib.live.config.RecorderConfig
 
 /**
  * Project Name: AndroidScreenLive
@@ -15,39 +15,6 @@ import android.os.Build
 object RecorderConfigHelper {
 
     const val SP_NAME = "recorder"
-
-    const val DEFAULT_VIDEO_WIDTH = 960
-    const val DEFAULT_VIDEO_HEIGHT = 540
-    const val DEFAULT_VIDEO_BITRATE = 5625 * 1000
-    const val DEFAULT_VIDEO_FRAME_RATE = 25
-    const val DEFAULT_VIDEO_I_FRAME_INTERVAL = 2
-
-    const val DEFAULT_AUDIO_CHANNEL_COUNT = 1 // 声道数量
-    const val DEFAULT_AUDIO_BITRATE = 128000 // 音频码率 128kbps
-    const val DEFAULT_AUDIO_SAMPLE_RATE = 44100  // 音频采样率 44.1kHz
-
-    // 录制的音频源类型
-    const val AUDIO_SOURCE_TYPE_ALL = 0 // 麦克风+系统输出声音
-    const val AUDIO_SOURCE_TYPE_MIC = 1 // 仅麦克风
-    const val AUDIO_SOURCE_TYPE_PLAYBACK = 2 // 仅系统输出声音
-
-    /**
-     * 是否支持录制系统输出声音
-     */
-    fun supportRecordPlaybackAudio(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-    }
-
-    /**
-     * 默认的录音源类型
-     */
-    fun getDefaultAudioSourceType(): Int {
-        return if (supportRecordPlaybackAudio()) {
-            AUDIO_SOURCE_TYPE_ALL
-        } else {
-            AUDIO_SOURCE_TYPE_MIC
-        }
-    }
 
     /**
      * 保存配置

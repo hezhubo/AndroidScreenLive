@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
+    namespace "com.hezb.lib.rtmp"
     compileSdk 33
 
     defaultConfig {
-        namespace "com.hezb.lib.rtmp"
         minSdk 21
         versionCode 1
         versionName "1.0"

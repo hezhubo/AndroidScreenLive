@@ -14,7 +14,6 @@ import java.io.FileReader
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.text.SimpleDateFormat
-import java.util.Arrays
 import java.util.regex.Pattern
 
 /**
@@ -48,7 +47,7 @@ class MyUncaughtExceptionHandler : Thread.UncaughtExceptionHandler {
                 val printWriter = PrintWriter(BufferedWriter(fileWriter))
                 printWriter.println("device: ${Build.MANUFACTURER} ${Build.MODEL}")
                 printWriter.println("version: ${Build.VERSION.RELEASE}")
-                printWriter.println("cpu abi: ${Arrays.toString(Build.SUPPORTED_ABIS)}")
+                printWriter.println("cpu abi: ${Build.SUPPORTED_ABIS.contentToString()}")
                 val windowManager = IApplication.getInstance().getSystemService(Context.WINDOW_SERVICE) as WindowManager
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val bounds = windowManager.maximumWindowMetrics.bounds

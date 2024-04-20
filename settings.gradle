@@ -14,5 +14,6 @@ dependencyResolutionManagement {
 }
 rootProject.name = "AndroidScreenLive"
 include ':app'
+include ':lib-live'
 include ':lib-rtmp'
 include ':lib-soundtouch'

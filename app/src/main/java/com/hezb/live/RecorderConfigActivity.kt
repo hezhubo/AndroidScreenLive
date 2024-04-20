@@ -23,10 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.hezb.live.recorder.config.RecorderConfig
+import com.hezb.lib.live.config.RecorderConfig
+import com.hezb.lib.live.model.Size
+import com.hezb.lib.live.util.LogUtil
 import com.hezb.live.recorder.config.RecorderConfigHelper
-import com.hezb.live.recorder.model.Size
-import com.hezb.live.recorder.util.LogUtil
 import com.hezb.live.recorder.util.MediaCodecUtil
 
 /**
@@ -214,24 +214,24 @@ class RecorderConfigActivity : AppCompatActivity() {
     @Composable
     fun AudioSourceGroup(sourceSelectedState: MutableState<Int>) {
         Column {
-            if (RecorderConfigHelper.supportRecordPlaybackAudio()) {
+            if (RecorderConfig.supportRecordPlaybackAudio()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { sourceSelectedState.value = RecorderConfigHelper.AUDIO_SOURCE_TYPE_ALL }) {
-                    RadioButton(selected = sourceSelectedState.value == RecorderConfigHelper.AUDIO_SOURCE_TYPE_ALL, onClick = null)
+                    modifier = Modifier.clickable { sourceSelectedState.value = RecorderConfig.AUDIO_SOURCE_TYPE_ALL }) {
+                    RadioButton(selected = sourceSelectedState.value == RecorderConfig.AUDIO_SOURCE_TYPE_ALL, onClick = null)
                     Text("麦克风+系统输出声音")
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { sourceSelectedState.value = RecorderConfigHelper.AUDIO_SOURCE_TYPE_PLAYBACK }) {
-                    RadioButton(selected = sourceSelectedState.value == RecorderConfigHelper.AUDIO_SOURCE_TYPE_PLAYBACK, onClick = null)
+                    modifier = Modifier.clickable { sourceSelectedState.value = RecorderConfig.AUDIO_SOURCE_TYPE_PLAYBACK }) {
+                    RadioButton(selected = sourceSelectedState.value == RecorderConfig.AUDIO_SOURCE_TYPE_PLAYBACK, onClick = null)
                     Text("仅系统输出声音")
                 }
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { sourceSelectedState.value = RecorderConfigHelper.AUDIO_SOURCE_TYPE_MIC }) {
-                RadioButton(selected = sourceSelectedState.value == RecorderConfigHelper.AUDIO_SOURCE_TYPE_MIC, onClick = null)
+                modifier = Modifier.clickable { sourceSelectedState.value = RecorderConfig.AUDIO_SOURCE_TYPE_MIC }) {
+                RadioButton(selected = sourceSelectedState.value == RecorderConfig.AUDIO_SOURCE_TYPE_MIC, onClick = null)
                 Text("仅麦克风")
             }
         }
